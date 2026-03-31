@@ -55,3 +55,9 @@ data/transcripts/*
 !data/raw_videos/.gitkeep
 !data/clips/.gitkeep
 !data/transcripts/.gitkeep
+
+# Notes & AI Settings
+Goal.txt
+Workflow.png
+.agents/
+
