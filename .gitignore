@@ -52,12 +52,25 @@ Thumbs.db
 data/raw_videos/*
 data/clips/*
 data/transcripts/*
+data/clips_metadata/*
 !data/raw_videos/.gitkeep
 !data/clips/.gitkeep
 !data/transcripts/.gitkeep
+!data/clips_metadata/.gitkeep
+
+# MCP Configs (auto-generated)
+.mcp.json
+.codex/
+.cursor/
+.gemini/settings.json
+.zed/
+.vscode/mcp.json
+config/mcporter.json
+opencode.json
 
 # Notes & AI Settings
 Goal.txt
 Workflow.png
 .agents/
 
+test_android.mp4
