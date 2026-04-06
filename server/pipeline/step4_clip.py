@@ -68,11 +68,13 @@ def get_video_filter(aspect_ratio: str) -> list:
 
     elif aspect_ratio == "letterbox":
         # Two-stage filter:
-        # 1. scale=-2:1440 — scale video height to 1440px (fits inside 1920 
-        #    with room for bars), -2 keeps aspect ratio and ensures even width
-        # 2. pad=1080:1920 — place the scaled video centered inside a 1080x1920 
-        #    black canvas. (ow-iw)/2 centers horizontally, (oh-ih)/2 centers vertically.
-        return ["-vf", "scale=-2:1440,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black"]
+        # 1. scale=1080:1920:force_original_aspect_ratio=decrease
+        #    This safely shrinks/expands the video to fit exactly inside a 
+        #    1080x1920 bounding box without distorting the aspect ratio.
+        # 2. pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black
+        #    This places the perfectly scaled video into the center of a pitch
+        #    black 1080x1920 canvas.
+        return ["-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black"]
 
     elif aspect_ratio == "square":
         # Crop a centered square from the landscape frame.
@@ -125,6 +127,11 @@ def process_clips(video_filepath: str, metadata_filepath: str) -> list[str]:
     print(f"🎬 Found {len(clips)} clips | Aspect ratio: {aspect_ratio}")
 
     base_name = os.path.splitext(os.path.basename(video_filepath))[0]
+    
+    # Create a dedicated subdirectory for this specific video's clips
+    video_clips_dir = os.path.join(CLIPS_OUTPUT_DIR, base_name)
+    os.makedirs(video_clips_dir, exist_ok=True)
+    
     generated_files = []
 
     for idx, clip in enumerate(clips, start=1):
@@ -140,8 +147,9 @@ def process_clips(video_filepath: str, metadata_filepath: str) -> list[str]:
         safe_title = sanitize_filename(raw_title)
         clip_num = clip.get("clip_number", idx)
 
-        output_filename = f"{base_name}_clip{clip_num:02d}_{safe_title}.mp4"
-        output_filepath = os.path.join(CLIPS_OUTPUT_DIR, output_filename)
+        # We no longer need the base_name in the filename since the folder provides the context
+        output_filename = f"clip{clip_num:02d}_{safe_title}.mp4"
+        output_filepath = os.path.join(video_clips_dir, output_filename)
 
         if os.path.exists(output_filepath):
             print(f"⏩ Clip {clip_num} already exists, skipping.")

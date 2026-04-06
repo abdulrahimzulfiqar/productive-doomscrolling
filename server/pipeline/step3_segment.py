@@ -113,17 +113,21 @@ def build_system_prompt(video_duration: float, chapters: list = None) -> str:
     so users can learn the COMPLETE content of a video by scrolling through bite-sized pieces.
 
     CRITICAL RULES:
-    1. You MUST divide the ENTIRE video into consecutive, non-overlapping clips.
-       The first clip starts at 0.0 seconds. The last clip ends at {video_duration} seconds.
-       Every second of the video must belong to exactly one clip. NO gaps, NO overlaps.
-    2. Each clip should be between 30 and 120 seconds long.
-    3. Find NATURAL breakpoints: topic shifts, pauses, transitions, or sentence endings.
-       Never cut in the middle of a sentence or during an active demonstration.
-    4. Cover the entire video INCLUDING intros and outros — do not skip anything.
-    5. Tag each clip as 'content' (default for most), 'sponsor_ad' (if the speaker 
+    1. You MUST cover the ENTIRE video from 0.0 to {video_duration} seconds.
+       You ARE ALLOWED to have slight overlaps (e.g., 2-10 seconds) between adjacent 
+       clips IF it helps preserve the flow and context for the viewer.
+    2. DURATION: Each clip must be between 60 seconds (1 minute) and 300 seconds (5 minutes) long.
+    3. INDEPENDENT CONTEXT: This is highest priority. Every single clip MUST be an 
+       independent, complete thought. If a user clicks on a random clip, they must 
+       be able to understand the full context of what is being discussed. Do not generate 
+       short fragments that lack context.
+    4. BREAKPOINTS: Focus heavily on major topic changes and transitions. Let the speaker 
+       finish their complete thought before ending the clip. 
+    5. Cover the entire video INCLUDING intros and outros — do not skip anything.
+    6. Tag each clip as 'content' (default for most), 'sponsor_ad' (if the speaker 
        is clearly promoting a product/sponsor), or 'filler' (only for truly empty  
        moments like long silence or music-only transitions).
-    6. Rate each clip's virality_score from 1-10 based on educational value, 
+    7. Rate each clip's virality_score from 1-10 based on educational value, 
        entertainment, and how well it works as a standalone short clip.
 
     ASPECT RATIO DECISION:
@@ -137,6 +141,7 @@ def build_system_prompt(video_duration: float, chapters: list = None) -> str:
        middle ground that works on all platforms.
     - 'original': Use only if the source video is already vertical or has an 
        unusual aspect ratio. Keeps the source ratio.
+
 
     TIMESTAMP RULES:
     - clip start_time must EXACTLY match a segment 'start' value from the transcript.

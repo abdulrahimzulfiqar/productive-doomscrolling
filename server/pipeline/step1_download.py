@@ -68,6 +68,49 @@ def download_video(url: str) -> dict:
     # Ensure the output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+    # --- Local File Bypass ---
+    # If the user provides a direct path to an .mp4 file instead of a URL,
+    # skip yt-dlp entirely. Copy it to our workspace and calculate its duration.
+    if os.path.isfile(url):
+        print(f"\n📂 Local file detected: {url}")
+        
+        base_name = os.path.basename(url)
+        import re
+        safe_name = re.sub(r'[^\w\-_.]', '_', os.path.splitext(base_name)[0]) + ".mp4"
+        dest_path = os.path.join(OUTPUT_DIR, safe_name)
+        
+        # Only copy if it's not already in the target directory
+        if os.path.abspath(url) != os.path.abspath(dest_path):
+            import shutil
+            print(f"   Copying to workspace: {dest_path}")
+            shutil.copy2(url, dest_path)
+        else:
+            print(f"   File already in workspace.")
+            
+        # Get duration using ffprobe
+        import subprocess
+        try:
+            cmd = [
+                "ffprobe", "-v", "error", "-show_entries",
+                "format=duration", "-of",
+                "default=noprint_wrappers=1:nokey=1", dest_path
+            ]
+            duration_str = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
+            duration_sec = float(duration_str)
+        except Exception as e:
+            print(f"   ⚠️ Could not read duration via ffprobe: {e}")
+            duration_sec = 0.0
+
+        print(f"📹 Title:    {safe_name}")
+        print(f"⏱️  Duration: {duration_sec}s ({int(duration_sec) // 60}m {int(duration_sec) % 60}s)")
+
+        return {
+            "title": safe_name,
+            "filepath": dest_path,
+            "duration": duration_sec,
+            "chapters": []  # Local files lack parsed chapters initially
+        }
+
     # --- yt-dlp Options ---
     # These options control HOW yt-dlp downloads the video.
     # Industry practice: configure via dict, not CLI args.
@@ -75,12 +118,14 @@ def download_video(url: str) -> dict:
         # Output template: save as <video_title>.mp4 inside our data folder.
         "outtmpl": os.path.join(OUTPUT_DIR, "%(title)s.%(ext)s"),
 
-        # Format selection: pick best pre-merged mp4, fallback to any best.
-        # We avoid "bestvideo+bestaudio" because YouTube frequently returns
-        # 403 Forbidden on separate stream downloads.
-        "format": "best[ext=mp4]/best",
+        # Format selection (2026 SABR-compatible):
+        # YouTube now forces SABR streaming for most clients, which means
+        # the old pre-merged "format 18" (360p) is often unavailable.
+        # We request the best separate video+audio streams and let yt-dlp
+        # merge them via ffmpeg into a single mp4 container.
+        "format": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best",
 
-        # Force merge into mp4 container (safety net).
+        # Force merge into mp4 container.
         "merge_output_format": "mp4",
 
         # Restrict filenames to ASCII characters to avoid filesystem issues.
@@ -93,21 +138,16 @@ def download_video(url: str) -> dict:
         # Don't download playlists — only the single video.
         "noplaylist": True,
 
-        # --- Anti-403 Measures ---
-        # YouTube aggressively blocks default clients and now requires
-        # PO Tokens for iOS/Mobile. The "android" + "web" combination
-        # currently bypasses these blocks successfully.
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "web"],
-            }
-        },
-
-        # Retry up to 3 times on transient network failures.
-        "retries": 3,
+        # Retry up to 5 times on transient network failures.
+        "retries": 5,
 
         # Skip unavailable fragments instead of failing the whole download.
         "skip_unavailable_fragments": True,
+
+        # --- Cookie Authentication ---
+        # YouTube's anti-bot system blocks repeat requests from the same IP.
+        # Browser cookies authenticate us as a real logged-in user.
+        "cookiesfrombrowser": ("chrome",),
     }
 
     # --- Execute Download ---
