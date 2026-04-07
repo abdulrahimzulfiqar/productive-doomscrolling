@@ -1,230 +1,158 @@
-"""
-=============================================================================
-Step 1: Video Downloader (yt-dlp)
-=============================================================================
-
-PURPOSE:
-    Downloads a YouTube video given a URL using `yt-dlp`.
-    This is the first stage in our AI pipeline:
-
-    [YouTube URL] --> step1_download.py --> [Raw Video File (.mp4)] + [Metadata]
-
-DESIGN DECISIONS:
-    - We download the BEST quality pre-merged video+audio as a single .mp4.
-    - Output is saved to `data/raw_videos/` with a sanitized filename.
-    - We extract YouTube chapter markers (if available) and pass them forward 
-      to Gemini in Step 3 for richer context about visual/action segments.
-    - Single extract_info(download=True) call instead of two separate calls 
-      to avoid duplicate network round-trips to YouTube.
-    - All yt-dlp configuration is done via Python dict (not CLI flags)
-      for better control, error handling, and testability.
-
-USAGE:
-    from server.pipeline.step1_download import download_video
-    result = download_video("https://www.youtube.com/watch?v=...")
-"""
-
 import os
+import re
+import json
 import yt_dlp
+import subprocess
+import shutil
+from typing import Dict, Any
 
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
+# --- Directory Setup ---
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUTPUT_DIR = os.path.join(BASE_DIR, "data", "raw_videos")
+TRANSCRIPTS_DIR = os.path.join(BASE_DIR, "data", "transcripts")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
 
-# Where downloaded videos are stored (relative to project root)
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "raw_videos")
+def sanitize_filename(name: str) -> str:
+    return re.sub(r'[^\w\-_.]', '_', name)
 
+def extract_youtube_id(url: str) -> str:
+    """Extracts the 11-character YouTube video ID from a URL."""
+    match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11}).*", url)
+    return match.group(1) if match else None
 
-# ---------------------------------------------------------------------------
-# Core Download Function
-# ---------------------------------------------------------------------------
-
-def download_video(url: str) -> dict:
+def get_native_transcript(video_id: str, video_title: str) -> bool:
     """
-    Downloads a YouTube video and returns metadata about the download.
-
-    Args:
-        url: A valid YouTube URL (e.g., https://www.youtube.com/watch?v=...)
-
-    Returns:
-        dict with keys:
-            - "filepath":   Absolute path to the downloaded .mp4 file
-            - "title":      Video title (sanitized for filesystem)
-            - "duration":   Video duration in seconds
-            - "video_id":   YouTube video ID
-            - "chapters":   List of chapter dicts (title, start_time, end_time)
-                            Empty list if the video has no chapters.
-
-    Raises:
-        ValueError: If the URL is empty or clearly invalid.
-        yt_dlp.utils.DownloadError: If yt-dlp fails to download.
+    Attempts to fetch the transcript instantly via youtube-transcript-api.
+    Returns True if successfully saved to disk, False if we need to fallback.
     """
+    try:
+        print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
+        ytt_api = YouTubeTranscriptApi()
+        transcript_list = ytt_api.list(video_id)
+        
+        # We explicitly demand manual english transcripts first. 
+        # If none exist, we accept auto-generated english. 
+        try:
+            transcript = transcript_list.find_manually_created_transcript(['en'])
+            print("   ✅ Found manual high-quality English transcript!")
+        except Exception:
+            transcript = transcript_list.find_generated_transcript(['en'])
+            print("   ⚠️ Found auto-generated English transcript.")
+            
+        raw_data = transcript.fetch()
+        
+        # Convert to Whisper-style format
+        whisper_format = []
+        for segment in raw_data:
+            whisper_format.append({
+                "start": segment.start,
+                "end": segment.start + segment.duration,
+                "text": segment.text
+            })
+            
+        safe_title = sanitize_filename(video_title)
+        out_path = os.path.join(TRANSCRIPTS_DIR, f"{safe_title}_transcript.json")
+        with open(out_path, 'w', encoding='utf-8') as f:
+            json.dump(whisper_format, f, indent=2, ensure_ascii=False)
+            
+        print(f"   💾 Saved instantly to {out_path}")
+        return out_path
+        
+    except (TranscriptsDisabled, NoTranscriptFound, Exception) as e:
+        print(f"   ❌ Native captions unavailable: {e}")
+        return None
 
-    # --- Input Validation ---
+def download_video(url: str) -> Dict[str, Any]:
+    """
+    Ingests a video. Fetches metadata and native transcripts if possible.
+    If transcript fails, downloads ONLY the audio for Whisper fallback.
+    """
     if not url or not url.strip():
         raise ValueError("URL cannot be empty.")
 
-    # Ensure the output directory exists
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
     # --- Local File Bypass ---
-    # If the user provides a direct path to an .mp4 file instead of a URL,
-    # skip yt-dlp entirely. Copy it to our workspace and calculate its duration.
     if os.path.isfile(url):
         print(f"\n📂 Local file detected: {url}")
-        
         base_name = os.path.basename(url)
-        import re
-        safe_name = re.sub(r'[^\w\-_.]', '_', os.path.splitext(base_name)[0]) + ".mp4"
+        safe_name = sanitize_filename(os.path.splitext(base_name)[0]) + ".mp4"
         dest_path = os.path.join(OUTPUT_DIR, safe_name)
         
-        # Only copy if it's not already in the target directory
         if os.path.abspath(url) != os.path.abspath(dest_path):
-            import shutil
             print(f"   Copying to workspace: {dest_path}")
             shutil.copy2(url, dest_path)
         else:
             print(f"   File already in workspace.")
             
-        # Get duration using ffprobe
-        import subprocess
         try:
-            cmd = [
-                "ffprobe", "-v", "error", "-show_entries",
-                "format=duration", "-of",
-                "default=noprint_wrappers=1:nokey=1", dest_path
-            ]
-            duration_str = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
-            duration_sec = float(duration_str)
-        except Exception as e:
-            print(f"   ⚠️ Could not read duration via ffprobe: {e}")
+            cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", dest_path]
+            duration_sec = float(subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip())
+        except Exception:
             duration_sec = 0.0
-
-        print(f"📹 Title:    {safe_name}")
-        print(f"⏱️  Duration: {duration_sec}s ({int(duration_sec) // 60}m {int(duration_sec) % 60}s)")
 
         return {
             "title": safe_name,
             "filepath": dest_path,
             "duration": duration_sec,
-            "chapters": []  # Local files lack parsed chapters initially
+            "chapters": [],
+            "transcript_ready_path": None # Forces Whisper
         }
 
-    # --- yt-dlp Options ---
-    # These options control HOW yt-dlp downloads the video.
-    # Industry practice: configure via dict, not CLI args.
-    ydl_opts = {
-        # Output template: save as <video_title>.mp4 inside our data folder.
-        "outtmpl": os.path.join(OUTPUT_DIR, "%(title)s.%(ext)s"),
-
-        # Format selection (2026 SABR-compatible):
-        # YouTube now forces SABR streaming for most clients, which means
-        # the old pre-merged "format 18" (360p) is often unavailable.
-        # We request the best separate video+audio streams and let yt-dlp
-        # merge them via ffmpeg into a single mp4 container.
-        "format": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best",
-
-        # Force merge into mp4 container.
-        "merge_output_format": "mp4",
-
-        # Restrict filenames to ASCII characters to avoid filesystem issues.
-        "restrictfilenames": True,
-
-        # Show download progress.
-        "quiet": False,
-        "no_warnings": False,
-
-        # Don't download playlists — only the single video.
+    # --- YouTube API / Metadata Extraction ---
+    print(f"\n📡 Fetching metadata: {url}")
+    
+    # We only want metadata now!
+    ydl_opts_info = {
+        "quiet": True,
+        "no_warnings": True,
         "noplaylist": True,
-
-        # Retry up to 5 times on transient network failures.
-        "retries": 5,
-
-        # Skip unavailable fragments instead of failing the whole download.
-        "skip_unavailable_fragments": True,
-
-        # --- Cookie Authentication ---
-        # YouTube's anti-bot system blocks repeat requests from the same IP.
-        # Browser cookies authenticate us as a real logged-in user.
-        "cookiesfrombrowser": ("chrome",),
     }
 
-    # --- Execute Download ---
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
-        # Single extract_info call with download=True.
-        # This avoids the previous bug where we called extract_info twice
-        # (once without download, once with), causing duplicate YouTube requests.
-        print(f"\n📡 Fetching & downloading: {url}")
-        info = ydl.extract_info(url, download=True)
+    with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+        info = ydl.extract_info(url, download=False)
 
         video_title = info.get("title", "unknown")
-        video_id = info.get("id", "unknown")
+        video_id = info.get("id", extract_youtube_id(url))
         duration = info.get("duration", 0)
 
-        print(f"📹 Title:    {video_title}")
-        print(f"🆔 ID:       {video_id}")
-        print(f"⏱️  Duration: {duration}s ({duration // 60}m {duration % 60}s)")
-
-        # --- Extract YouTube Chapters ---
-        # Many creators add chapter markers (e.g., "0:00 Intro", "2:30 Drop Test").
-        # yt-dlp parses these from the video description automatically.
-        # We forward them to Gemini so it understands visual/action segments 
-        # that may have little or no dialogue.
         raw_chapters = info.get("chapters", []) or []
-        chapters = []
-        for ch in raw_chapters:
-            chapters.append({
-                "title": ch.get("title", "Untitled"),
-                "start_time": ch.get("start_time", 0),
-                "end_time": ch.get("end_time", 0),
-            })
+        chapters = [{"title": ch.get("title"), "start_time": ch.get("start_time"), "end_time": ch.get("end_time")} for ch in raw_chapters]
 
-        if chapters:
-            print(f"📑 Found {len(chapters)} YouTube chapters")
-        else:
-            print(f"📑 No YouTube chapters found (video has no chapter markers)")
+    print(f"📹 Title:    {video_title}")
+    print(f"🆔 ID:       {video_id}")
+    print(f"⏱️  Duration: {duration}s")
+    if chapters: print(f"📑 Found {len(chapters)} YouTube chapters")
 
-        # Build the expected output filepath.
-        filepath = ydl.prepare_filename(info)
-        filepath = os.path.splitext(filepath)[0] + ".mp4"
-        filepath = os.path.abspath(filepath)
-
-        print(f"✅ Download complete: {filepath}")
+    # --- Attempt Instant Transcript ---
+    transcript_path = None
+    if video_id:
+        transcript_path = get_native_transcript(video_id, video_title)
+        
+    downloaded_filepath = None
+    
+    # --- Whisper Fallback (Audio Download) ---
+    if not transcript_path:
+        print("\n🔈 Triggering Audio-Only Download Fallback for Whisper...")
+        ydl_opts_download = {
+            "outtmpl": os.path.join(OUTPUT_DIR, "%(title)s.%(ext)s"),
+            "format": "bestaudio[ext=m4a]/bestaudio/best",
+            "restrictfilenames": True,
+            "quiet": False,
+            "cookiesfrombrowser": ("chrome",),
+        }
+        with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
+            dl_info = ydl.extract_info(url, download=True)
+            downloaded_filepath = os.path.abspath(ydl.prepare_filename(dl_info))
+            print(f"✅ Audio downloaded to: {downloaded_filepath}")
 
     return {
-        "filepath": filepath,
         "title": video_title,
-        "duration": duration,
         "video_id": video_id,
+        "duration": duration,
         "chapters": chapters,
+        "transcript_ready_path": transcript_path,
+        "filepath": downloaded_filepath
     }
-
-
-# ---------------------------------------------------------------------------
-# Standalone Test
-# ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    TEST_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
-
-    print("=" * 60)
-    print("  PIPELINE STEP 1: Video Download Test")
-    print("=" * 60)
-
-    result = download_video(TEST_URL)
-
-    print("\n" + "=" * 60)
-    print("  RESULT:")
-    print(f"  File:     {result['filepath']}")
-    print(f"  Title:    {result['title']}")
-    print(f"  Duration: {result['duration']}s")
-    print(f"  Video ID: {result['video_id']}")
-    print(f"  Chapters: {len(result['chapters'])}")
-    print("=" * 60)
-
-    if os.path.exists(result["filepath"]):
-        size_mb = os.path.getsize(result["filepath"]) / (1024 * 1024)
-        print(f"  ✅ File verified on disk ({size_mb:.1f} MB)")
-    else:
-        print(f"  ❌ ERROR: File not found at {result['filepath']}")

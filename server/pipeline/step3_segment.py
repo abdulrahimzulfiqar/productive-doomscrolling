@@ -171,9 +171,10 @@ def segment_transcript(
     base_name = os.path.basename(transcript_filepath).replace("_transcript.json", "")
     clips_filepath = os.path.join(CLIPS_METADATA_DIR, f"{base_name}_clips.json")
 
-    # Always regenerate during development to test prompt changes
+    # If we already generated clips for this transcript, skip Gemini to save API costs!
     if os.path.exists(clips_filepath):
-        os.remove(clips_filepath)
+        print(f"\n🧠 Using cached AI clips from: {clips_filepath}")
+        return clips_filepath
 
     print(f"\n📖 Loading transcript: {transcript_filepath}")
     with open(transcript_filepath, 'r', encoding='utf-8') as f:
@@ -181,7 +182,12 @@ def segment_transcript(
 
     # Clean segments: only send what Gemini needs (start, end, text)
     clean_segments = []
-    for seg in transcript_data.get("segments", []):
+    if isinstance(transcript_data, list):
+        segments = transcript_data
+    else:
+        segments = transcript_data.get("segments", [])
+
+    for seg in segments:
         clean_segments.append({
             "start": seg.get("start"),
             "end": seg.get("end"),
