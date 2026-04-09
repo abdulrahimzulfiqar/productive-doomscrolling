@@ -27,8 +27,13 @@ def extract_youtube_id(url: str) -> str:
 def get_native_transcript(video_id: str, video_title: str) -> bool:
     """
     Attempts to fetch the transcript instantly via youtube-transcript-api.
-    Returns True if successfully saved to disk, False if we need to fallback.
+    Returns the path if successfully saved (or cached), False if we need to fallback.
     """
+    out_path = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_transcript.json")
+    if os.path.exists(out_path):
+        print(f"   ⏩ Native transcript already cached: {out_path}")
+        return out_path
+
     try:
         print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
         ytt_api = YouTubeTranscriptApi()
@@ -54,8 +59,7 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
                 "text": segment.text
             })
             
-        safe_title = sanitize_filename(video_title)
-        out_path = os.path.join(TRANSCRIPTS_DIR, f"{safe_title}_transcript.json")
+        out_path = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_transcript.json")
         with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(whisper_format, f, indent=2, ensure_ascii=False)
             

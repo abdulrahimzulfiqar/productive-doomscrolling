@@ -113,18 +113,18 @@ def extract_audio(video_filepath: str) -> str:
         raise RuntimeError("Failed to extract audio from video.")
 
 
-def transcribe_audio(audio_filepath: str, video_title: str) -> str:
+def transcribe_audio(audio_filepath: str, video_id: str) -> str:
     """
     Sends the MP3 file to Groq Whisper for transcription.
     
     Args:
         audio_filepath: Absolute path to the extracted .mp3.
-        video_title: Base name of the video for saving the JSON output.
+        video_id: Unique ID of the video for saving the JSON output.
     Returns:
         Absolute path to the saved transcript JSON file.
     """
     os.makedirs(TRANSCRIPT_DIR, exist_ok=True)
-    transcript_filepath = os.path.join(TRANSCRIPT_DIR, f"{video_title}_transcript.json")
+    transcript_filepath = os.path.join(TRANSCRIPT_DIR, f"{video_id}_transcript.json")
 
     # Caching check: Don't spend API limits if we already transcribed this!
     if os.path.exists(transcript_filepath):
@@ -154,17 +154,19 @@ def transcribe_audio(audio_filepath: str, video_title: str) -> str:
     return transcript_filepath
 
 
-def process_transcription(video_filepath: str) -> dict:
+def process_transcription(video_filepath: str, video_id: str = None) -> dict:
     """
     Main orchestrator for Step 2. Groups extraction and transcription.
     """
     if not os.path.exists(video_filepath):
         raise FileNotFoundError(f"Video file not found: {video_filepath}")
 
-    base_name = os.path.splitext(os.path.basename(video_filepath))[0]
+    # Use the provided video_id or fallback to extracting from filename
+    if not video_id:
+        video_id = os.path.splitext(os.path.basename(video_filepath))[0]
     
     audio_path = extract_audio(video_filepath)
-    transcript_path = transcribe_audio(audio_path, base_name)
+    transcript_path = transcribe_audio(audio_path, video_id)
     
     return {
         "audio_filepath": audio_path,
