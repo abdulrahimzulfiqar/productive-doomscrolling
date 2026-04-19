@@ -6,17 +6,22 @@ import YouTube from "react-youtube";
  * Handles the logic for playing a specific segment of a video.
  * Loops automatically between start and end times.
  */
-export default function YouTubePlayer({ videoId, start, end, onReady, isMuted }) {
+export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted }) {
   const playerRef = useRef(null);
   const scrollInterval = useRef(null);
 
   // Sync mute state when prop changes
   useEffect(() => {
-    if (playerRef.current) {
-      if (isMuted) {
-        playerRef.current.mute();
-      } else {
-        playerRef.current.unMute();
+    // Defensive Check: Ensure the player exists AND has the volume methods
+    if (playerRef.current && typeof playerRef.current.mute === 'function') {
+      try {
+        if (isMuted) {
+          playerRef.current.mute();
+        } else {
+          playerRef.current.unMute();
+        }
+      } catch (e) {
+        console.warn("YouTube Player initialization in progress, volume command deferred.");
       }
     }
   }, [isMuted]);
@@ -38,11 +43,6 @@ export default function YouTubePlayer({ videoId, start, end, onReady, isMuted })
   const onPlayerReady = (event) => {
     playerRef.current = event.target;
     
-    // Industrial Standard: Force high quality for mobile desktop simulation
-    if (playerRef.current.setPlaybackQuality) {
-      playerRef.current.setPlaybackQuality('hd720');
-    }
-
     // Initial mute state
     if (isMuted) {
       playerRef.current.mute();
@@ -50,13 +50,32 @@ export default function YouTubePlayer({ videoId, start, end, onReady, isMuted })
       playerRef.current.unMute();
     }
     
-    console.log(`[YouTubePlayer] Segment Synced: ${start}s - ${end}s`);
     if (scrollInterval.current) clearInterval(scrollInterval.current);
     
     scrollInterval.current = setInterval(() => {
-      const currentTime = playerRef.current.getCurrentTime();
-      if (currentTime >= end) {
-        playerRef.current.seekTo(start);
+      // Defensive Check: Ensure player exists and is not destroyed
+      if (!playerRef.current || typeof playerRef.current.getCurrentTime !== 'function') {
+        return;
+      }
+
+      try {
+        const currentTime = playerRef.current.getCurrentTime();
+        
+        // 1. Handle Segment Looping
+        if (currentTime >= end) {
+          playerRef.current.seekTo(start);
+        }
+
+        // 2. Report Real-time Progress
+        if (onProgress) {
+          const duration = end - start;
+          const elapsed = currentTime - start;
+          const progress = Math.max(0, Math.min(100, (elapsed / duration) * 100));
+          onProgress(progress);
+        }
+      } catch (e) {
+        // Silently catch errors if the API is in a transition state
+        console.warn("YouTube API heart-beat skipped:", e);
       }
     }, 200);
 
@@ -65,7 +84,11 @@ export default function YouTubePlayer({ videoId, start, end, onReady, isMuted })
 
   useEffect(() => {
     return () => {
-      if (scrollInterval.current) clearInterval(scrollInterval.current);
+      if (scrollInterval.current) {
+        clearInterval(scrollInterval.current);
+        scrollInterval.current = null;
+      }
+      playerRef.current = null;
     };
   }, []);
 

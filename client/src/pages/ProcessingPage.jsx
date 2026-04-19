@@ -6,8 +6,11 @@ import { useLibrary } from "../hooks/useLibrary";
 export default function ProcessingPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { updateVideo } = useLibrary();
+  const { updateVideo, deleteVideo } = useLibrary();
+  const fetching = React.useRef(false);
+  const mountedRef = React.useRef(true);
   const [step, setStep] = useState(0);
+  const [error, setError] = useState(null);
   const [isFinished, setIsFinished] = useState(false);
   const { videoId, url } = location.state || {};
   
@@ -19,15 +22,23 @@ export default function ProcessingPage() {
   ];
 
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
 
     // Phase 1 -> Phase 2 (UI only for engagement)
-    const t1 = setTimeout(() => setStep(1), 3500);
+    const t1 = setTimeout(() => {
+      if (mountedRef.current) setStep(1);
+    }, 3500);
+    
     // Phase 2 -> Phase 3 (UI only for engagement)
-    const t2 = setTimeout(() => setStep(2), 8000);
+    const t2 = setTimeout(() => {
+      if (mountedRef.current) setStep(2);
+    }, 8000);
 
     // Call the real backend
     const processVideo = async () => {
+      if (fetching.current) return;
+      fetching.current = true;
+      
       try {
         console.log("Starting real AI pipeline for:", url);
         const response = await fetch("http://localhost:8000/api/v1/process", {
@@ -36,15 +47,18 @@ export default function ProcessingPage() {
           body: JSON.stringify({ url })
         });
 
-        if (!response.ok) throw new Error("Pipeline failed");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || "Pipeline failed");
+        }
 
         const data = await response.json();
         console.log("Pipeline Finished Successfully:", data);
 
-        if (isMounted) {
+        if (mountedRef.current) {
           // Update the library via Hook logic
-          updateVideo(videoId, {
-            title: data.video_summary.split('.')[0] || "AI Processed Content",
+          await updateVideo(videoId, {
+            title: data.video_summary?.split('.')[0] || "AI Processed Content",
             status: "completed",
             clips: data.clips.map((c, i) => ({
               id: `${videoId}-c${i}`,
@@ -61,15 +75,16 @@ export default function ProcessingPage() {
 
           // Automatic redirect after tick
           setTimeout(() => {
-            if (isMounted) navigate("/");
+            if (mountedRef.current) navigate("/");
           }, 2000);
         }
       } catch (error) {
         console.error("Processing error:", error);
-        if (isMounted) {
-          updateVideo(videoId, { status: "failed" });
-          // Navigate home after failure to clear state
-          setTimeout(() => navigate("/"), 3000);
+        if (mountedRef.current) {
+          setError(error.message);
+          // Industrial Cleanup: Automatically remove the failed entry from the library
+          // so it doesn't leave a 'broken' card behind.
+          await deleteVideo(videoId);
         }
       }
     };
@@ -77,11 +92,11 @@ export default function ProcessingPage() {
     if (url) processVideo();
 
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [navigate, videoId, url, updateVideo]);
+  }, [navigate, videoId, url, updateVideo, deleteVideo]);
 
   return (
     <div className="min-h-screen bg-surface text-on-surface flex flex-col overflow-x-hidden">
@@ -137,12 +152,20 @@ export default function ProcessingPage() {
 
         {/* Status Label */}
         <div className="text-center mb-12 h-20">
-            <h3 className="text-2xl font-bold text-primary mb-2 transition-all">
-                {isFinished ? "Success!" : "Detoxifying content..."}
+            <h3 className={`text-2xl font-bold mb-2 transition-all ${error ? 'text-red-400' : 'text-primary'}`}>
+                {error ? "Synthesis Failed" : isFinished ? "Success!" : "Detoxifying content..."}
             </h3>
             <p className="text-on-surface-variant text-sm max-w-[260px] mx-auto leading-relaxed opacity-70">
-                {isFinished ? "Redirecting to your flow..." : "AI is distilling neural layers for constructive consumption."}
+                {error ? error : isFinished ? "Redirecting to your flow..." : "AI is distilling neural layers for constructive consumption."}
             </p>
+            {error && (
+              <button 
+                onClick={() => navigate("/")}
+                className="mt-6 px-8 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-bold active:scale-95 transition-transform"
+              >
+                Return to Library
+              </button>
+            )}
         </div>
 
         {/* Pipeline Steps */}

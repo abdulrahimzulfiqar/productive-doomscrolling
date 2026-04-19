@@ -151,32 +151,17 @@ def build_system_prompt(video_duration: float, chapters: list = None) -> str:
     """
 
 
+import time
+
 def segment_transcript(
     transcript_filepath: str, 
     video_duration: float = None,
     chapters: list = None
-) -> str:
+) -> dict:
     """
-    Analyzes a transcript and returns AI-generated full-coverage clip metadata.
-    
-    Args:
-        transcript_filepath: Path to the Groq Whisper output JSON.
-        video_duration: Total video duration in seconds (from Step 1).
-        chapters: Optional list of YouTube chapter dicts with title/start_time/end_time.
-    Returns:
-        Absolute path to the saved clips metadata JSON file.
+    Analyzes a transcript and returns AI-generated full-coverage clip metadata as a dictionary.
     """
-    os.makedirs(CLIPS_METADATA_DIR, exist_ok=True)
-    
-    base_name = os.path.basename(transcript_filepath).replace("_transcript.json", "")
-    clips_filepath = os.path.join(CLIPS_METADATA_DIR, f"{base_name}_clips.json")
-
-    # If we already generated clips for this transcript, skip Gemini to save API costs!
-    if os.path.exists(clips_filepath):
-        print(f"\n🧠 Using cached AI clips from: {clips_filepath}")
-        return clips_filepath
-
-    print(f"\n📖 Loading transcript: {transcript_filepath}")
+    print(f"\n📖 Loading transcript from memory/tmp: {transcript_filepath}")
     with open(transcript_filepath, 'r', encoding='utf-8') as f:
         transcript_data = json.load(f)
 
@@ -202,32 +187,50 @@ def segment_transcript(
 
     print(f"🧠 Asking Gemini 2.5 Flash to fully segment {len(clean_segments)} segments ({video_duration:.0f}s)...")
 
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=transcript_text_payload,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SegmentationResult,
-                system_instruction=build_system_prompt(video_duration, chapters)
+    # --- Industrial Retry Logic (Backoff) ---
+    max_retries = 5
+    retry_delay = 2  # Start with 2s
+    
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemma-4-31b-it', #'gemma-4-31b-it'. 'gemini-2.5-flash-lite'
+                contents=transcript_text_payload,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=SegmentationResult,
+                    system_instruction=build_system_prompt(video_duration, chapters)
+                )
             )
-        )
-        
-        ai_response_json = json.loads(response.text)
+            
+            ai_response_json = json.loads(response.text)
 
-        with open(clips_filepath, 'w', encoding='utf-8') as f:
-            json.dump(ai_response_json, f, indent=2, ensure_ascii=False)
+            # INDUSTRIAL CLEANUP: Delete the transcript file
+            if os.path.exists(transcript_filepath):
+                try:
+                    os.remove(transcript_filepath)
+                except Exception:
+                    pass
 
-        clips = ai_response_json.get("clips", [])
-        ratio = ai_response_json.get("recommended_aspect_ratio", "square")
-        print(f"✅ Full segmentation complete: {len(clips)} clips.")
-        print(f"📐 Recommended aspect ratio: {ratio}")
-        print(f"💾 Saved to: {clips_filepath}")
-        return clips_filepath
+            clips = ai_response_json.get("clips", [])
+            ratio = ai_response_json.get("recommended_aspect_ratio", "square")
+            print(f"✅ Full segmentation complete: {len(clips)} clips.")
+            print(f"📐 Recommended aspect ratio: {ratio}")
+            
+            return ai_response_json
 
-    except Exception as e:
-        print(f"❌ Gemini Segmentation Error: {e}")
-        raise
+        except Exception as e:
+            error_msg = str(e)
+            # Only retry on 503 (Service Unavailable / High Demand)
+            if "503" in error_msg or "Unavailable" in error_msg:
+                print(f"   ⚠️ Gemini Busy (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                print(f"❌ Gemini Segmentation Error: {e}")
+                raise
+
+    raise RuntimeError(f"Gemini API failed after {max_retries} attempts due to high demand.")
 
 
 # ---------------------------------------------------------------------------

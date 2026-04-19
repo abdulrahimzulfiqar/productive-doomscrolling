@@ -1,69 +1,139 @@
 import { useState, useCallback, useEffect } from "react";
+import { supabase } from "../supabaseClient";
 
 /**
- * useLibrary Hook
+ * useLibrary Hook (Supabase Edition)
  * Centralizes all CRUD operations for the Productive Doomscrolling app.
- * Persists data to localStorage while enforcing ID-based uniqueness.
+ * Persists data to Supabase PostgreSQL database.
  */
 export const useLibrary = () => {
   const [library, setLibrary] = useState([]);
 
-  // Load library on mount
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("library") || "[]");
-    setLibrary(saved);
+  // Load library from Supabase
+  const fetchLibrary = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("videos")
+      .select(`*, clips(*)`)
+      .order("created_at", { ascending: false });
+      
+    if (!error && data) {
+      setLibrary(data);
+    } else if (error) {
+      console.error("Error fetching library:", error);
+    }
   }, []);
 
-  const saveLibrary = (newLibrary) => {
-    localStorage.setItem("library", JSON.stringify(newLibrary));
-    setLibrary(newLibrary);
-  };
+  useEffect(() => {
+    fetchLibrary();
+  }, [fetchLibrary]);
 
   /**
    * Adds a new video to the library.
-   * Enforces deduplication based on videoId.
+   * Enforces deduplication based on videoId inside Supabase.
    */
-  const addVideo = useCallback((candidate) => {
-    const existing = JSON.parse(localStorage.getItem("library") || "[]");
+  const addVideo = useCallback(async (candidate) => {
+    // Check if ID already exists
+    const { data: existing } = await supabase
+      .from("videos")
+      .select("*, clips(*)")
+      .eq("id", candidate.id)
+      .single();
     
-    // Check if ID already exists (Deduplication)
-    const duplicateIndex = existing.findIndex(v => v.id === candidate.id);
-    
-    if (duplicateIndex !== -1) {
+    if (existing) {
       console.log(`[useLibrary] Video ID ${candidate.id} already exists. Returning existing.`);
-      return { video: existing[duplicateIndex], isNew: false };
+      return { video: existing, isNew: false };
     }
 
-    const updated = [candidate, ...existing];
-    saveLibrary(updated);
+    // Insert new video
+    const { data, error } = await supabase
+      .from("videos")
+      .insert([
+        {
+          id: candidate.id,
+          url: candidate.url,
+          title: candidate.title || "Processing Masterclass...",
+          image: candidate.image,
+          duration: candidate.duration || "Calculating...",
+          status: candidate.status || "processing"
+        }
+      ])
+      .select(`*, clips(*)`)
+      .single();
+
+    if (!error && data) {
+      setLibrary(prev => [data, ...prev]);
+      return { video: data, isNew: true };
+    }
+    
+    console.error("Error inserting video:", error);
     return { video: candidate, isNew: true };
   }, []);
 
   /**
-   * Updates an existing video record (e.g. after AI finishes)
+   * Updates an existing video record
    */
-  const updateVideo = useCallback((id, updates) => {
-    const existing = JSON.parse(localStorage.getItem("library") || "[]");
-    const updated = existing.map(v => 
-      v.id === id ? { ...v, ...updates } : v
-    );
-    saveLibrary(updated);
-  }, []);
+  const updateVideo = useCallback(async (id, updates) => {
+    // 1. Update the videos table
+    const { error: videoError } = await supabase
+      .from("videos")
+      .update({
+        title: updates.title,
+        status: updates.status
+      })
+      .eq("id", id);
+
+    if (videoError) {
+      console.error("Error updating video:", videoError);
+      return;
+    }
+
+    // 2. If there are clips, insert them
+    if (updates.clips && updates.clips.length > 0) {
+      const clipsToInsert = updates.clips.map(c => ({
+        id: c.id,
+        video_id: id,
+        title: c.title,
+        start_time: c.start,
+        end_time: c.end,
+        duration: c.duration,
+        summary: c.summary
+      }));
+
+      const { error: clipsError } = await supabase
+        .from("clips")
+        .insert(clipsToInsert);
+
+      if (clipsError) {
+        console.error("Error inserting clips:", clipsError);
+      }
+    }
+
+    // Re-fetch to get the fresh record with clips
+    fetchLibrary();
+  }, [fetchLibrary]);
+
 
   /**
    * Deletes a video from the library.
    */
-  const deleteVideo = useCallback((id) => {
-    const existing = JSON.parse(localStorage.getItem("library") || "[]");
-    const updated = existing.filter(v => v.id !== id);
-    saveLibrary(updated);
+  const deleteVideo = useCallback(async (id) => {
+    const { error } = await supabase
+      .from("videos")
+      .delete()
+      .eq("id", id);
+      
+    if (!error) {
+      setLibrary(prev => prev.filter(v => v.id !== id));
+    } else {
+      console.error("Error deleting video:", error);
+    }
   }, []);
 
   /**
-   * Clears the entire library (mostly for internal testing/reset)
+   * Clears the entire library (not recommended for production DB, kept for API compat)
    */
-  const clearLibrary = useCallback(() => {
-    saveLibrary([]);
+  const clearLibrary = useCallback(async () => {
+    console.warn("clearLibrary is disabled in Supabase mode to prevent accidental deletion.");
   }, []);
 
   return {
@@ -71,6 +141,7 @@ export const useLibrary = () => {
     addVideo,
     updateVideo,
     deleteVideo,
-    clearLibrary
+    clearLibrary,
+    fetchLibrary
   };
 };

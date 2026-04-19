@@ -10,11 +10,9 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 
 # --- Directory Setup ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUTPUT_DIR = os.path.join(BASE_DIR, "data", "raw_videos")
-TRANSCRIPTS_DIR = os.path.join(BASE_DIR, "data", "transcripts")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
+import tempfile
+TEMP_DIR = tempfile.gettempdir()
+
 
 def sanitize_filename(name: str) -> str:
     return re.sub(r'[^\w\-_.]', '_', name)
@@ -28,10 +26,11 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
     """
     Attempts to fetch the transcript instantly via youtube-transcript-api.
     Returns the path if successfully saved (or cached), False if we need to fallback.
+    Now supports ANY language if English is unavailable.
     """
-    out_path = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_transcript.json")
+    out_path = os.path.join(TEMP_DIR, f"{video_id}_transcript.json")
     if os.path.exists(out_path):
-        print(f"   ⏩ Native transcript already cached: {out_path}")
+        print(f"   ⏩ Native transcript already cached in tmp: {out_path}")
         return out_path
 
     try:
@@ -39,14 +38,20 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
         ytt_api = YouTubeTranscriptApi()
         transcript_list = ytt_api.list(video_id)
         
-        # We explicitly demand manual english transcripts first. 
-        # If none exist, we accept auto-generated english. 
+        # 1. Try to find Manual English (Best) or Generated English (Okay)
         try:
-            transcript = transcript_list.find_manually_created_transcript(['en'])
-            print("   ✅ Found manual high-quality English transcript!")
+            transcript = transcript_list.find_transcript(['en'])
+            print("   ✅ Found English transcript (Native/Auto).")
         except Exception:
-            transcript = transcript_list.find_generated_transcript(['en'])
-            print("   ⚠️ Found auto-generated English transcript.")
+            # 2. Global Fallback: Find ANY first available transcript
+            # This handles Hindi, Spanish, etc. Gemini will translate later.
+            print("   ⚠️ English transcript not found. Searching for alt languages...")
+            available_languages = [t.language_code for t in transcript_list]
+            if not available_languages:
+                raise ValueError("No transcripts available in any language.")
+            
+            transcript = transcript_list.find_transcript([available_languages[0]])
+            print(f"   🌐 Falling back to {transcript.language} ({transcript.language_code}) transcript.")
             
         raw_data = transcript.fetch()
         
@@ -59,7 +64,7 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
                 "text": segment.text
             })
             
-        out_path = os.path.join(TRANSCRIPTS_DIR, f"{video_id}_transcript.json")
+        out_path = os.path.join(TEMP_DIR, f"{video_id}_transcript.json")
         with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(whisper_format, f, indent=2, ensure_ascii=False)
             
@@ -83,7 +88,7 @@ def download_video(url: str) -> Dict[str, Any]:
         print(f"\n📂 Local file detected: {url}")
         base_name = os.path.basename(url)
         safe_name = sanitize_filename(os.path.splitext(base_name)[0]) + ".mp4"
-        dest_path = os.path.join(OUTPUT_DIR, safe_name)
+        dest_path = os.path.join(TEMP_DIR, safe_name)
         
         if os.path.abspath(url) != os.path.abspath(dest_path):
             print(f"   Copying to workspace: {dest_path}")
@@ -141,7 +146,7 @@ def download_video(url: str) -> Dict[str, Any]:
     if not transcript_path:
         print("\n🔈 Triggering Audio-Only Download Fallback for Whisper...")
         ydl_opts_download = {
-            "outtmpl": os.path.join(OUTPUT_DIR, "%(title)s.%(ext)s"),
+            "outtmpl": os.path.join(TEMP_DIR, "%(id)s.%(ext)s"), # Use ID for cleaner tracking
             "format": "bestaudio[ext=m4a]/bestaudio/best",
             "restrictfilenames": True,
             "quiet": False,
@@ -151,6 +156,7 @@ def download_video(url: str) -> Dict[str, Any]:
             dl_info = ydl.extract_info(url, download=True)
             downloaded_filepath = os.path.abspath(ydl.prepare_filename(dl_info))
             print(f"✅ Audio downloaded to: {downloaded_filepath}")
+
 
     return {
         "title": video_title,

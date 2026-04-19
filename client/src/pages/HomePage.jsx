@@ -41,7 +41,7 @@ export default function HomePage() {
 
       <main className="pt-24 px-6 pb-24">
         {/* Search & Filter Section */}
-        <section className="mb-8 max-w-lg mx-auto">
+        <section className="mb-8 max-w-lg mx-auto text-left">
           <h2 className="text-3xl font-extrabold tracking-tight mb-6">Library</h2>
           
           <div className="relative mb-6 group">
@@ -53,13 +53,12 @@ export default function HomePage() {
             />
           </div>
           
-          {/* Horizontal Scrolling Filter Pills */}
           <div className="flex gap-3 overflow-x-auto hide-scrollbar -mx-6 px-6">
             {tabs.map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap active:scale-95 transition-all ${
+                className={`px-6 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap active:scale-90 transition-all ${
                   activeTab === tab 
                     ? "bg-gradient-to-br from-emerald-300 to-emerald-600 text-slate-950 shadow-lg shadow-emerald-500/20"
                     : "bg-surface-container-high text-on-surface font-medium hover:bg-surface-variant"
@@ -71,18 +70,29 @@ export default function HomePage() {
           </div>
         </section>
         
-        {/* Video Grid */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-8 max-w-5xl mx-auto">
+        {/* Corrected Video Grid */}
+        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-10 max-w-5xl mx-auto">
           {library.length > 0 ? (
-            library.map((video) => (
-              <div key={video.id} onClick={() => handleVideoClick(video)}>
+            library
+              .filter(v => v.status !== 'failed')
+              .map((video) => (
+                <div 
+                  key={video.id} 
+                  onClick={() => {
+                    if (video.status === 'completed') {
+                      navigate("/clips", { state: { video } });
+                    } else {
+                      navigate("/processing", { state: { videoId: video.id, url: video.url } });
+                    }
+                  }}
+                >
                   <VideoCard video={video} />
-              </div>
-            ))
+                </div>
+              ))
           ) : (
             <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-40">
               <span className="material-symbols-outlined !text-6xl">movie_filter</span>
-              <p className="font-medium text-lg">Your library is empty.<br/><span className="text-sm font-normal">Add a video to get started.</span></p>
+              <p className="font-medium text-lg text-white">Your library is empty.<br/><span className="text-sm font-normal">Add a video to get started.</span></p>
             </div>
           )}
         </section>

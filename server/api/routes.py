@@ -20,26 +20,10 @@ async def process_video_endpoint(request: ProcessVideoRequest):
     try:
         print(f"\n[PIPELINE START] Processing URL: {url}")
         
-        # 0. Extract ID for Global Cache Check
+        # Step 1: Ingestion & Metadata
         from server.pipeline.step1_download import extract_youtube_id
-        from server.pipeline.step3_segment import CLIPS_METADATA_DIR
         video_id = extract_youtube_id(url)
         
-        if video_id:
-            clips_cache_path = os.path.join(CLIPS_METADATA_DIR, f"{video_id}_clips.json")
-            if os.path.exists(clips_cache_path):
-                print(f">>> [CACHE HIT] Found existing clips for {video_id}. Skipping pipeline.")
-                with open(clips_cache_path, 'r', encoding='utf-8') as f:
-                    metadata = json.load(f)
-                return ProcessVideoResponse(
-                    video_url=url,
-                    video_summary=metadata.get("video_summary", "Cached summary."),
-                    recommended_aspect_ratio=metadata.get("recommended_aspect_ratio", "letterbox"),
-                    aspect_ratio_reasoning=metadata.get("aspect_ratio_reasoning", "Loaded from cache."),
-                    clips=metadata.get("clips", [])
-                )
-
-        # Step 1: Ingestion & Metadata
         print(">>> [1/3] STAGE: DEEP INGESTION")
         print("    Fetching video context and metadata...")
         video_metadata = download_video(url)
@@ -67,18 +51,15 @@ async def process_video_endpoint(request: ProcessVideoRequest):
         # Step 3: Segment into viral clips
         print(">>> [2/3] STAGE: NEURAL DISTILLATION")
         print("    Analyzing transcript with Gemini 2.5 Flash...")
-        clips_metadata_path = segment_transcript(
+        metadata = segment_transcript(
             transcript_path,
             video_duration=video_duration,
             chapters=chapters
         )
         print("    ✓ AI segmentation complete.")
         
-        # Read the generated JSON response
         print(">>> [3/3] STAGE: ASSET SYNTHESIS")
         print("    Formatting clips for reactive UI...")
-        with open(clips_metadata_path, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
         print(f"    ✓ Successfully synthesized {len(metadata.get('clips', []))} clips.")
         print("[PIPELINE COMPLETE]\n")
             

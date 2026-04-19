@@ -21,7 +21,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/add" element={<AddVideoPage />} />
             <Route path="/processing" element={<ProcessingPage />} />
-            <Route path="/video/:id" element={<ClipsPage />} />
+            <Route path="/clips" element={<ClipsPage />} />
             <Route path="/feed" element={<FeedPage />} />
           </Routes>
         </div>

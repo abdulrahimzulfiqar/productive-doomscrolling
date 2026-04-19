@@ -10,7 +10,7 @@ export default function AddVideoPage() {
   const [showInput, setShowInput] = useState(false);
   const [url, setUrl] = useState("");
 
-  const handleProcess = (e) => {
+  const handleProcess = async (e) => {
     e.preventDefault();
     if (url.trim()) {
       const videoId = extractYoutubeId(url);
@@ -30,12 +30,12 @@ export default function AddVideoPage() {
         clips: [] 
       };
       
-      const { video, isNew } = addVideo(newVideo);
+      const { video, isNew } = await addVideo(newVideo);
 
       // If video exists and is already completed, go to it.
       // Otherwise, go to processing to sync/wait.
       if (!isNew && video.status === "completed") {
-        navigate(`/video/${video.id}`, { state: { video } });
+        navigate("/clips", { state: { video } });
       } else {
         navigate("/processing", { state: { videoId: video.id, url: video.url } });
       }
