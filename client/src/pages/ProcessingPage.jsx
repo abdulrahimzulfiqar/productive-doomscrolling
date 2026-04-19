@@ -41,7 +41,8 @@ export default function ProcessingPage() {
       
       try {
         console.log("Starting real AI pipeline for:", url);
-        const response = await fetch("http://localhost:8000/api/v1/process", {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+        const response = await fetch(`${backendUrl}/api/v1/process`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url })
