@@ -3,7 +3,7 @@
 An AI-powered web application that transforms long-form videos into useful, short-form clips using an intelligent pipeline.
 
 ## Overview
-This project processes long-form content (YouTube URLs or local files), extracts audio, transcribes it using Groq/Whisper, segments the transcription intelligently using Gemini 3.1 Flash, and cuts the video into short-form, vertical "TikTok-style" clips.
+This project processes long-form content (YouTube URLs or local files), extracts audio, transcribes it using Groq/Whisper, segments the transcription intelligently using Gemini 2.0 Flash, and cuts the video into short-form, vertical "TikTok-style" clips.
 
 ## Tech Stack
 - **Frontend**: React (Vite) + Tailwind CSS (Mobile-First)
