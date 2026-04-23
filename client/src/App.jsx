@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import BottomNav from "./components/BottomNav";
 import HomePage from "./pages/HomePage";
 import AddVideoPage from "./pages/AddVideoPage";
@@ -29,6 +30,9 @@ function App() {
         {/* Global Bottom Navigation */}
         <BottomNav />
       </div>
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </BrowserRouter>
   );
 }
