@@ -118,6 +118,12 @@ def download_video(url: str) -> Dict[str, Any]:
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["web_creator", "android", "ios"],
+                "skip": ["dash", "hls"]
+            }
+        },
     }
 
     with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
@@ -150,7 +156,12 @@ def download_video(url: str) -> Dict[str, Any]:
             "format": "bestaudio[ext=m4a]/bestaudio/best",
             "restrictfilenames": True,
             "quiet": False,
-            "cookiesfrombrowser": ("chrome",),
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["web_creator", "android", "ios"],
+                    "skip": ["dash", "hls"]
+                }
+            },
         }
         with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
             dl_info = ydl.extract_info(url, download=True)
