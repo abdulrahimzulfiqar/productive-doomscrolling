@@ -11,7 +11,46 @@ from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFoun
 
 # --- Directory Setup ---
 import tempfile
+from googleapiclient.discovery import build
+import isodate
+
 TEMP_DIR = tempfile.gettempdir()
+
+def get_youtube_metadata_api(video_id: str) -> Dict[str, Any]:
+    """Fetches video metadata using the official YouTube Data API v3."""
+    api_key = os.environ.get("YOUTUBE_API_KEY")
+    if not api_key:
+        print("⚠️ No YOUTUBE_API_KEY found. Falling back to scraper.")
+        return None
+    
+    try:
+        print(f"📡 Fetching metadata via Official YouTube API for {video_id}...")
+        youtube = build("youtube", "v3", developerKey=api_key, cache_discovery=False)
+        request = youtube.videos().list(
+            part="snippet,contentDetails",
+            id=video_id
+        )
+        response = request.execute()
+        
+        if not response.get('items'):
+            print("   ❌ Video not found or private via API.")
+            return None
+            
+        item = response['items'][0]
+        title = item['snippet']['title']
+        duration_iso = item['contentDetails']['duration']
+        duration_sec = isodate.parse_duration(duration_iso).total_seconds()
+        
+        print(f"   ✅ API success: {title}")
+        return {
+            "title": title,
+            "duration": int(duration_sec),
+            "chapters": [] # API chapters are complex, keeping it for now
+        }
+    except Exception as e:
+        print(f"   ❌ YouTube API error: {e}")
+        return None
+
 
 
 def sanitize_filename(name: str) -> str:
@@ -111,35 +150,41 @@ def download_video(url: str) -> Dict[str, Any]:
         }
 
     # --- YouTube API / Metadata Extraction ---
-    print(f"\n📡 Fetching metadata: {url}")
-    
-    # We only want metadata now!
-    ydl_opts_info = {
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["web_creator", "android", "ios"],
-                "skip": ["dash", "hls"]
-            }
-        },
-    }
+    video_id = extract_youtube_id(url)
+    api_metadata = get_youtube_metadata_api(video_id) if video_id else None
 
-    with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
-        info = ydl.extract_info(url, download=False)
+    if api_metadata:
+        video_title = api_metadata['title']
+        duration = api_metadata['duration']
+        chapters = api_metadata['chapters']
+    else:
+        print(f"\n📡 Falling back to scraping metadata: {url}")
+        # We only want metadata now!
+        ydl_opts_info = {
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["web_creator", "android", "ios"],
+                    "skip": ["dash", "hls"]
+                }
+            },
+        }
 
-        video_title = info.get("title", "unknown")
-        video_id = info.get("id", extract_youtube_id(url))
-        duration = info.get("duration", 0)
-
-        raw_chapters = info.get("chapters", []) or []
-        chapters = [{"title": ch.get("title"), "start_time": ch.get("start_time"), "end_time": ch.get("end_time")} for ch in raw_chapters]
+        with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
+            info = ydl.extract_info(url, download=False)
+            video_title = info.get("title", "unknown")
+            video_id = info.get("id", video_id)
+            duration = info.get("duration", 0)
+            raw_chapters = info.get("chapters", []) or []
+            chapters = [{"title": ch.get("title"), "start_time": ch.get("start_time"), "end_time": ch.get("end_time")} for ch in raw_chapters]
 
     print(f"📹 Title:    {video_title}")
     print(f"🆔 ID:       {video_id}")
     print(f"⏱️  Duration: {duration}s")
     if chapters: print(f"📑 Found {len(chapters)} YouTube chapters")
+
 
     # --- Attempt Instant Transcript ---
     transcript_path = None
