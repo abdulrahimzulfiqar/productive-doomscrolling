@@ -72,34 +72,17 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
         print(f"   ⏩ Native transcript already cached in tmp: {out_path}")
         return out_path
 
-    # --- Cookie Configuration ---
-    # Look for cookies.txt in the root directory
-    cookie_file = "www.youtube.com_cookies.txt"
     cookies_path = None
+    cookie_file = "www.youtube.com_cookies.txt"
     if os.path.exists(cookie_file):
-        print(f"   🍪 Using Cookie Session (VIP Authentication) for {video_id}...")
         cookies_path = cookie_file
-
-    # --- Proxy Configuration ---
-    ws_user = os.environ.get("WEBSHARE_USERNAME")
-    ws_pass = os.environ.get("WEBSHARE_PASSWORD")
-    proxy_config = None
-
-    if ws_user and ws_pass:
-        print(f"   🌐 Using Webshare Rotating Proxies for {video_id}...")
-        proxy_config = WebshareProxyConfig(
-            proxy_username=ws_user,
-            proxy_password=ws_pass
-        )
 
     try:
         print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
         
-        # Priority: Cookies (Session) > Proxy Config > Default
-        # Note: cookies path is passed to list_transcripts
-        transcript_list = YouTubeTranscriptApi.list_transcripts(
+        # Correct method is .list() in this version
+        transcript_list = YouTubeTranscriptApi.list(
             video_id, 
-            proxy_config=proxy_config,
             cookies=cookies_path
         )
         
@@ -173,6 +156,13 @@ def download_video(url: str) -> Dict[str, Any]:
             "chapters": [],
             "transcript_ready_path": None # Forces Whisper
         }
+
+    # --- Cookie Configuration (Root Level) ---
+    cookie_file = "www.youtube.com_cookies.txt"
+    cookies_path = None
+    if os.path.exists(cookie_file):
+        print(f"   🍪 Using Cookie Session (VIP Authentication) for {url}...")
+        cookies_path = cookie_file
 
     # --- YouTube API / Metadata Extraction ---
     video_id = extract_youtube_id(url)
