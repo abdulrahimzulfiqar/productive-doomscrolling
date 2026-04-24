@@ -13,7 +13,7 @@ export const useLibrary = () => {
   const fetchLibrary = useCallback(async () => {
     const { data, error } = await supabase
       .from("videos")
-      .select(`*`) // THIN FETCH: Do NOT pull clips for the main list
+      .select(`*, clips(count)`) // FAST COUNT: Get the number of clips without the data
       .order("created_at", { ascending: false });
       
     if (!error && data) {

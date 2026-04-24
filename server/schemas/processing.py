@@ -24,6 +24,7 @@ class ProcessVideoResponse(BaseModel):
     """
     video_url: str
     video_summary: str
+    video_duration: str # Formatted like "12:35"
     recommended_aspect_ratio: str
     aspect_ratio_reasoning: str
     clips: List[ClipResponse]

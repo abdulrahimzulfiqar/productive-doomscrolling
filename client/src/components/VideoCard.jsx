@@ -51,7 +51,9 @@ function VideoCard({ video }) {
                 <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                   <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
                 </div>
-                <span className="text-[10px] font-bold text-white tracking-widest leading-none">{video.clips?.length || 0} CLIPS</span>
+                <span className="text-[10px] font-bold text-white tracking-widest leading-none">
+                  {video.clips?.[0]?.count ?? video.clips?.length ?? 0} CLIPS
+                </span>
              </div>
              <div className="bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-emerald-400 border border-white/5">
                 {video.duration || "0:00"}

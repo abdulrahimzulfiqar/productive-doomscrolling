@@ -56,16 +56,15 @@ async def process_video_endpoint(request: ProcessVideoRequest):
             video_duration=video_duration,
             chapters=chapters
         )
-        print("    ✓ AI segmentation complete.")
-        
-        print(">>> [3/3] STAGE: ASSET SYNTHESIS")
-        print("    Formatting clips for reactive UI...")
-        print(f"    ✓ Successfully synthesized {len(metadata.get('clips', []))} clips.")
-        print("[PIPELINE COMPLETE]\n")
-            
+        # Format duration for the UI
+        minutes = int(video_duration // 60)
+        seconds = int(video_duration % 60)
+        formatted_dur = f"{minutes}:{seconds:02d}"
+
         return ProcessVideoResponse(
             video_url=url,
             video_summary=metadata.get("video_summary", "No summary available."),
+            video_duration=formatted_dur,
             recommended_aspect_ratio=metadata.get("recommended_aspect_ratio", "letterbox"),
             aspect_ratio_reasoning=metadata.get("aspect_ratio_reasoning", ""),
             clips=metadata.get("clips", [])
