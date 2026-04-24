@@ -80,11 +80,12 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
     try:
         print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
         
-        # Correct method is .list() in this version
-        transcript_list = YouTubeTranscriptApi.list(
-            video_id, 
-            cookies=cookies_path
-        )
+        # Defensive approach: Try list_transcripts first, then fallback to list
+        if hasattr(YouTubeTranscriptApi, 'list_transcripts'):
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies_path)
+        else:
+            # Legacy or different version
+            transcript_list = YouTubeTranscriptApi.list(video_id)
         
         # 1. Try to find Manual English (Best) or Generated English (Okay)
         try:
@@ -182,7 +183,8 @@ def download_video(url: str) -> Dict[str, Any]:
             "cookiefile": cookies_path if cookies_path else None,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["web_creator", "android", "ios"],
+                    # Avoid restricted clients when using cookies to prevent format errors
+                    "player_client": ["web", "web_creator"] if cookies_path else ["web_creator", "android", "ios"],
                     "skip": ["dash", "hls"]
                 }
             },
@@ -220,7 +222,8 @@ def download_video(url: str) -> Dict[str, Any]:
             "cookiefile": cookies_path if cookies_path else None,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["web_creator", "android", "ios"],
+                    # Relax client restrictions when using cookies
+                    "player_client": ["web", "web_creator"] if cookies_path else ["web_creator", "android", "ios"],
                     "skip": ["dash", "hls"]
                 }
             },
