@@ -9,6 +9,11 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState("All Clips");
 
   const tabs = ["All Clips", "Habits", "Career", "Mental Health"];
+  
+  // Industrial Performance: Memoize the filtered list so it doesn't re-calculate on EVERY scroll
+  const filteredVideos = React.useMemo(() => {
+    return library.filter(v => v.status !== 'failed');
+  }, [library]);
 
   const handleVideoClick = (video) => {
     if (video.status === "completed") {
@@ -72,10 +77,8 @@ export default function HomePage() {
         
         {/* Corrected Video Grid */}
         <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-10 max-w-5xl mx-auto">
-          {library.length > 0 ? (
-            library
-              .filter(v => v.status !== 'failed')
-              .map((video) => (
+          {filteredVideos.length > 0 ? (
+            filteredVideos.map((video) => (
                 <div 
                   key={video.id} 
                   onClick={() => {

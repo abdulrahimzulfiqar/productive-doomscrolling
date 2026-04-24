@@ -1,7 +1,7 @@
-import React from "react";
+import React, { memo } from "react";
 import { useLibrary } from "../hooks/useLibrary";
 
-export default function VideoCard({ video }) {
+function VideoCard({ video }) {
   const { deleteVideo } = useLibrary();
 
   const handleDelete = (e) => {
@@ -14,7 +14,7 @@ export default function VideoCard({ video }) {
   return (
     <div className="flex flex-col gap-2 group cursor-pointer mb-4 relative active:scale-[0.97] transition-transform duration-200">
       {/* Cinematic Thumbnail Card */}
-      <div className="relative aspect-video rounded-2xl overflow-hidden bg-surface-container-high shadow-lg transition-all duration-500 lg:group-hover:scale-[1.03] lg:group-hover:shadow-emerald-500/10">
+      <div className="relative aspect-video rounded-2xl overflow-hidden bg-surface-container-high shadow-lg lg:transition-all lg:duration-500 lg:group-hover:scale-[1.03] lg:group-hover:shadow-emerald-500/10">
         <img 
           alt={video.title} 
           src={video.image}
@@ -67,3 +67,5 @@ export default function VideoCard({ video }) {
     </div>
   );
 }
+
+export default memo(VideoCard);
