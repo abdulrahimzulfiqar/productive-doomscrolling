@@ -25,14 +25,14 @@ function VideoCard({ video }) {
         {/* Modern Delete Button: Always visible on mobile, hover-only on desktop */}
         <button 
           onClick={handleDelete}
-          className="absolute top-2 right-2 p-2 bg-black/40 backdrop-blur-md rounded-xl text-white/60 hover:text-red-400 hover:bg-black/80 transition-all z-20 lg:opacity-0 lg:group-hover:opacity-100"
+          className="absolute top-2 right-2 p-2 bg-black/60 rounded-xl text-white/60 hover:text-red-400 hover:bg-black/80 transition-all z-20 lg:opacity-0 lg:group-hover:opacity-100"
         >
           <span className="material-symbols-outlined !text-lg">delete</span>
         </button>
 
         {/* Status Overlay */}
         {video.status !== "completed" && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-4 text-center gap-3 z-10">
+          <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-4 text-center gap-3 z-10">
             <div className={`p-3 rounded-full bg-white/5 border border-white/10 ${video.status === 'failed' ? '' : 'animate-pulse'}`}>
               <span className={`material-symbols-outlined text-3xl ${video.status === 'failed' ? 'text-red-400' : 'text-primary'}`}>
                 {video.status === 'failed' ? 'priority_high' : 'neurology'}
@@ -46,14 +46,14 @@ function VideoCard({ video }) {
 
         {/* Quick Play Info (Glass Overlay): Persistent on mobile for clarity */}
         {video.status === "completed" && (
-          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black via-black/40 to-transparent flex justify-between items-end lg:translate-y-2 lg:group-hover:translate-y-0 transition-transform">
+          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black via-black/80 to-transparent flex justify-between items-end lg:translate-y-2 lg:group-hover:translate-y-0 transition-transform">
              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-primary/20 backdrop-blur-md flex items-center justify-center border border-primary/30">
+                <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                   <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
                 </div>
                 <span className="text-[10px] font-bold text-white tracking-widest leading-none">{video.clips?.length || 0} CLIPS</span>
              </div>
-             <div className="bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-[9px] font-mono text-emerald-400 border border-white/5">
+             <div className="bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-emerald-400 border border-white/5">
                 {video.duration || "0:00"}
              </div>
           </div>

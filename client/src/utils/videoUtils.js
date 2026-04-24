@@ -11,5 +11,5 @@ export const extractYoutubeId = (url) => {
  * Returns a high-res thumbnail URL for a given YouTube ID.
  */
 export const getYoutubeThumbnail = (id) => {
-  return `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+  return `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 };
