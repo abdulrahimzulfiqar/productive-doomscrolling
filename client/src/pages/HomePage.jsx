@@ -81,6 +81,10 @@ export default function HomePage() {
             filteredVideos.map((video) => (
                 <div 
                   key={video.id} 
+                  style={{ 
+                    contentVisibility: 'auto', 
+                    containIntrinsicSize: '0 200px' // Estimate of card height to prevent scroll jumps
+                  }}
                   onClick={() => {
                     if (video.status === 'completed') {
                       navigate("/clips", { state: { video } });
