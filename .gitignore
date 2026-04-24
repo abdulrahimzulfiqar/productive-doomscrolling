@@ -77,3 +77,6 @@ test_android.mp4
 
 # User Design Specs
 Design/
+
+# YouTube Session Cookies (SENSITIVE)
+*_cookies.txt

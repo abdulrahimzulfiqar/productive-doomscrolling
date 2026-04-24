@@ -4,10 +4,11 @@ import json
 import yt_dlp
 import subprocess
 import shutil
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+from youtube_transcript_api.proxies import WebshareProxyConfig
 
 # --- Directory Setup ---
 import tempfile
@@ -64,18 +65,43 @@ def extract_youtube_id(url: str) -> str:
 def get_native_transcript(video_id: str, video_title: str) -> bool:
     """
     Attempts to fetch the transcript instantly via youtube-transcript-api.
-    Returns the path if successfully saved (or cached), False if we need to fallback.
-    Now supports ANY language if English is unavailable.
+    Uses Webshare rotating proxies if credentials are provided in environment.
     """
     out_path = os.path.join(TEMP_DIR, f"{video_id}_transcript.json")
     if os.path.exists(out_path):
         print(f"   ⏩ Native transcript already cached in tmp: {out_path}")
         return out_path
 
+    # --- Cookie Configuration ---
+    # Look for cookies.txt in the root directory
+    cookie_file = "www.youtube.com_cookies.txt"
+    cookies_path = None
+    if os.path.exists(cookie_file):
+        print(f"   🍪 Using Cookie Session (VIP Authentication) for {video_id}...")
+        cookies_path = cookie_file
+
+    # --- Proxy Configuration ---
+    ws_user = os.environ.get("WEBSHARE_USERNAME")
+    ws_pass = os.environ.get("WEBSHARE_PASSWORD")
+    proxy_config = None
+
+    if ws_user and ws_pass:
+        print(f"   🌐 Using Webshare Rotating Proxies for {video_id}...")
+        proxy_config = WebshareProxyConfig(
+            proxy_username=ws_user,
+            proxy_password=ws_pass
+        )
+
     try:
         print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
-        ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.list(video_id)
+        
+        # Priority: Cookies (Session) > Proxy Config > Default
+        # Note: cookies path is passed to list_transcripts
+        transcript_list = YouTubeTranscriptApi.list_transcripts(
+            video_id, 
+            proxy_config=proxy_config,
+            cookies=cookies_path
+        )
         
         # 1. Try to find Manual English (Best) or Generated English (Okay)
         try:
@@ -83,13 +109,12 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
             print("   ✅ Found English transcript (Native/Auto).")
         except Exception:
             # 2. Global Fallback: Find ANY first available transcript
-            # This handles Hindi, Spanish, etc. Gemini will translate later.
             print("   ⚠️ English transcript not found. Searching for alt languages...")
-            available_languages = [t.language_code for t in transcript_list]
-            if not available_languages:
-                raise ValueError("No transcripts available in any language.")
+            available = list(transcript_list)
+            if not available:
+                raise ValueError("No transcripts available.")
             
-            transcript = transcript_list.find_transcript([available_languages[0]])
+            transcript = available[0]
             print(f"   🌐 Falling back to {transcript.language} ({transcript.language_code}) transcript.")
             
         raw_data = transcript.fetch()
@@ -164,6 +189,7 @@ def download_video(url: str) -> Dict[str, Any]:
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
+            "cookiefile": cookies_path if cookies_path else None,
             "extractor_args": {
                 "youtube": {
                     "player_client": ["web_creator", "android", "ios"],
@@ -201,6 +227,7 @@ def download_video(url: str) -> Dict[str, Any]:
             "format": "bestaudio[ext=m4a]/bestaudio/best",
             "restrictfilenames": True,
             "quiet": False,
+            "cookiefile": cookies_path if cookies_path else None,
             "extractor_args": {
                 "youtube": {
                     "player_client": ["web_creator", "android", "ios"],
