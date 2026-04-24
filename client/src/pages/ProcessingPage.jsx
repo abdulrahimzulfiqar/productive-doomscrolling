@@ -64,10 +64,10 @@ export default function ProcessingPage() {
             clips: data.clips.map((c, i) => ({
               id: `${videoId}-c${i}`,
               title: c.title || `Insight ${i+1}`,
-              start: c.start_time,
-              end: c.end_time,
-              duration: `${Math.floor((c.end_time - c.start_time)/60)}:${String(Math.floor((c.end_time - c.start_time)%60)).padStart(2, '0')}`,
-              summary: c.reasoning || "AI extracted nugget."
+              start: c.start,
+              end: c.end,
+              duration: `${Math.floor((c.end - c.start)/60)}:${String(Math.floor((c.end - c.start)%60)).padStart(2, '0')}`,
+              summary: c.reason || "AI extracted nugget."
             }))
           });
           

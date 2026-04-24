@@ -13,10 +13,10 @@ class ClipResponse(BaseModel):
     """
     clip_number: int
     title: str
-    reasoning: Optional[str] = None
-    start_time: float
-    end_time: float
-    virality_score_1_to_100: Optional[int] = 50
+    reason: Optional[str] = None
+    start: float
+    end: float
+    virality_score: Optional[int] = 50
 
 class ProcessVideoResponse(BaseModel):
     """

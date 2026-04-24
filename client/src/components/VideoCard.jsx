@@ -18,6 +18,7 @@ export default function VideoCard({ video }) {
         <img 
           alt={video.title} 
           src={video.image}
+          loading="lazy"
           className="w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-110" 
         />
         

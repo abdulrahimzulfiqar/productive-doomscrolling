@@ -80,12 +80,17 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
     try:
         print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
         
-        # Defensive approach: Try list_transcripts first, then fallback to list
-        if hasattr(YouTubeTranscriptApi, 'list_transcripts'):
+        # Total fallback strategy for library method names
+        try:
+            # Modern/Official method
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies_path)
-        else:
-            # Legacy or different version
-            transcript_list = YouTubeTranscriptApi.list(video_id)
+        except (AttributeError, TypeError):
+            try:
+                # Alternate method name
+                transcript_list = YouTubeTranscriptApi.list(video_id)
+            except (AttributeError, TypeError):
+                # Another common variant
+                transcript_list = YouTubeTranscriptApi().list(video_id)
         
         # 1. Try to find Manual English (Best) or Generated English (Okay)
         try:
@@ -183,8 +188,8 @@ def download_video(url: str) -> Dict[str, Any]:
             "cookiefile": cookies_path if cookies_path else None,
             "extractor_args": {
                 "youtube": {
-                    # Avoid restricted clients when using cookies to prevent format errors
-                    "player_client": ["web", "web_creator"] if cookies_path else ["web_creator", "android", "ios"],
+                    # Added 'tv' and 'mweb' which are more resilient to the 'images only' error
+                    "player_client": ["tv", "mweb", "web"] if cookies_path else ["web_creator", "android", "ios"],
                     "skip": ["dash", "hls"]
                 }
             },
@@ -222,8 +227,8 @@ def download_video(url: str) -> Dict[str, Any]:
             "cookiefile": cookies_path if cookies_path else None,
             "extractor_args": {
                 "youtube": {
-                    # Relax client restrictions when using cookies
-                    "player_client": ["web", "web_creator"] if cookies_path else ["web_creator", "android", "ios"],
+                    # Use tv and mweb to get audio when web/ios is failing
+                    "player_client": ["tv", "mweb"] if cookies_path else ["web_creator", "android", "ios"],
                     "skip": ["dash", "hls"]
                 }
             },

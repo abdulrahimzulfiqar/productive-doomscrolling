@@ -68,8 +68,8 @@ class ViralClip(BaseModel):
     """Represents a single short-form clip extracted from the video."""
     clip_number: int = Field(description="Sequential clip number starting from 1.")
     title: str = Field(description="A catchy 3-8 word title for the clip.")
-    start_time: float = Field(description="Exact start timestamp in seconds.")
-    end_time: float = Field(description="Exact end timestamp in seconds.")
+    start: float = Field(description="Exact start timestamp in seconds.")
+    end: float = Field(description="Exact end timestamp in seconds.")
     virality_score: int = Field(description="Score from 1-10 predicting virality and educational value.")
     clip_type: str = Field(description="One of: 'content', 'sponsor_ad', 'filler'. Use 'content' for the vast majority.")
     reason: str = Field(description="Brief 1-sentence reason for this segmentation choice.")
@@ -144,9 +144,9 @@ def build_system_prompt(video_duration: float, chapters: list = None) -> str:
 
 
     TIMESTAMP RULES:
-    - clip start_time must EXACTLY match a segment 'start' value from the transcript.
-    - clip end_time must EXACTLY match a segment 'end' value from the transcript.
-    - Each clip's start_time must equal the previous clip's end_time (no gaps).
+    - Each line in the transcript below starts with [seconds].
+    - Use these exact timestamps for your 'start' and 'end' values.
+    - Each clip's start must equal the previous clip's end (no gaps).
     {chapter_context}
     """
 
@@ -161,6 +161,15 @@ def segment_transcript(
     """
     Analyzes a transcript and returns AI-generated full-coverage clip metadata as a dictionary.
     """
+    # --- Idempotency Check: Skip Gemini if already processed ---
+    video_id = os.path.basename(transcript_filepath).replace("_transcript.json", "")
+    cached_metadata_path = os.path.join(CLIPS_METADATA_DIR, f"{video_id}_clips.json")
+    
+    if os.path.exists(cached_metadata_path):
+        print(f"   ⏩ AI segmentation already cached: {cached_metadata_path}")
+        with open(cached_metadata_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
     print(f"\n📖 Loading transcript from memory/tmp: {transcript_filepath}")
     with open(transcript_filepath, 'r', encoding='utf-8') as f:
         transcript_data = json.load(f)
@@ -183,9 +192,18 @@ def segment_transcript(
     if video_duration is None:
         video_duration = clean_segments[-1]["end"] if clean_segments else 0.0
 
-    transcript_text_payload = json.dumps(clean_segments, indent=2)
-
-    print(f"🧠 Asking Gemini 2.5 Flash to fully segment {len(clean_segments)} segments ({video_duration:.0f}s)...")
+    # --- COMPRESSION: Build a compact string to save 70%+ tokens ---
+    compact_lines = []
+    for seg in clean_segments:
+        start_time = seg.get("start", 0)
+        text = seg.get("text", "").strip()
+        compact_lines.append(f"[{start_time:.1f}] {text}")
+    
+    transcript_text_payload = " || ".join(compact_lines)
+    
+    # Industrial Est: Each '||' and bracket helps Gemini delineate thoughts
+    model_label = "Gemini 1.5 Flash"
+    print(f"🧠 Asking {model_label} to segment {len(clean_segments)} lines (~{video_duration:.0f}s)...")
 
     # --- Industrial Retry Logic (Backoff) ---
     max_retries = 5
@@ -221,13 +239,16 @@ def segment_transcript(
 
         except Exception as e:
             error_msg = str(e)
-            # Only retry on 503 (Service Unavailable / High Demand)
-            if "503" in error_msg or "Unavailable" in error_msg:
-                print(f"   ⚠️ Gemini Busy (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
+            # Retry on Transient/Server Errors
+            is_transient = any(code in error_msg for code in ["500", "503", "429", "Unavailable", "Internal"])
+            
+            if is_transient:
+                print(f"   ⚠️ Gemini Busy/Error: {error_msg}")
+                print(f"   ⏳ (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
                 time.sleep(retry_delay)
                 retry_delay *= 2  # Exponential backoff
             else:
-                print(f"❌ Gemini Segmentation Error: {e}")
+                print(f"❌ Gemini Segmentation Error (Fatal): {e}")
                 raise
 
     raise RuntimeError(f"Gemini API failed after {max_retries} attempts due to high demand.")

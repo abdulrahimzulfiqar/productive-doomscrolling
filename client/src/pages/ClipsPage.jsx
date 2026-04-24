@@ -1,11 +1,30 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useLibrary } from "../hooks/useLibrary";
 
 export default function ClipsPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { video } = location.state || { video: { title: "Unknown Video", clips: [] } };
+  const { fetchVideoDetail } = useLibrary();
+  
+  // Use local state initialized from route state
+  const [video, setVideo] = React.useState(location.state?.video || null);
+  const [isLoading, setIsLoading] = React.useState(!video?.clips || video.clips.length === 0);
+
+  React.useEffect(() => {
+    if (video && (!video.clips || video.clips.length === 0)) {
+      setIsLoading(true);
+      fetchVideoDetail(video.id).then(fullVideo => {
+        if (fullVideo) setVideo(fullVideo);
+        setIsLoading(false);
+      });
+    } else {
+      setIsLoading(false);
+    }
+  }, [video?.id, fetchVideoDetail]);
+
+  if (!video) return null;
 
   return (
     <div className="min-h-screen bg-background text-on-surface pb-32">
@@ -60,8 +79,23 @@ export default function ClipsPage() {
             <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{video.clips?.length || 0} Lessons</span>
           </div>
           
-          <div className="grid gap-5">
-            {video.clips && video.clips.length > 0 ? (
+          <div className="grid gap-5 min-h-[300px]">
+            <AnimatePresence mode="wait">
+            {isLoading ? (
+                <motion.div 
+                  key="loader"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-6"
+                >
+                  <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin shadow-[0_0_20px_rgba(16,185,129,0.2)]" />
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-1">Distilling Insights</h3>
+                    <p className="text-xs text-white/40 uppercase tracking-widest font-mono">Neural layers are loading...</p>
+                  </div>
+                </motion.div>
+            ) : video.clips && video.clips.length > 0 ? (
               video.clips.map((clip, index) => (
                 <motion.div 
                   key={clip.id}
@@ -95,9 +129,10 @@ export default function ClipsPage() {
             ) : (
                 <div className="text-center py-20 opacity-30">
                     <span className="material-symbols-outlined text-6xl mb-4 font-thin">movie_edit</span>
-                    <p className="text-sm">Synthesizing insights...</p>
+                    <p className="text-sm">No nuggets found for this video.</p>
                 </div>
             )}
+            </AnimatePresence>
           </div>
         </section>
       </main>

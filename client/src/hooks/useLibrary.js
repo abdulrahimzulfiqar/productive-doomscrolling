@@ -13,11 +13,21 @@ export const useLibrary = () => {
   const fetchLibrary = useCallback(async () => {
     const { data, error } = await supabase
       .from("videos")
-      .select(`*, clips(*)`)
+      .select(`*`) // THIN FETCH: Do NOT pull clips for the main list
       .order("created_at", { ascending: false });
       
     if (!error && data) {
-      setLibrary(data);
+      // Map Supabase snake_case back to frontend camelCase/Short names
+      const mappedData = data.map(video => ({
+        ...video,
+        clips: video.clips?.map(clip => ({
+          ...clip,
+          // DEFENSIVE: Accept both names just in case
+          start: clip.start_time ?? clip.start,
+          end: clip.end_time ?? clip.end
+        })) || []
+      }));
+      setLibrary(mappedData);
     } else if (error) {
       console.error("Error fetching library:", error);
     }
@@ -41,7 +51,17 @@ export const useLibrary = () => {
     
     if (existing) {
       console.log(`[useLibrary] Video ID ${candidate.id} already exists. Returning existing.`);
-      return { video: existing, isNew: false };
+      // Map timestamps for the existing record too
+      const mappedExisting = {
+        ...existing,
+        clips: existing.clips?.map(clip => ({
+          ...clip,
+          // DEFENSIVE: Accept both names just in case
+          start: clip.start_time ?? clip.start,
+          end: clip.end_time ?? clip.end
+        })) || []
+      };
+      return { video: mappedExisting, isNew: false };
     }
 
     // Insert new video
@@ -130,6 +150,35 @@ export const useLibrary = () => {
   }, []);
 
   /**
+   * Fetches full video data including clips for a single video.
+   * Used for demand-loading when opening the Feed.
+   */
+  const fetchVideoDetail = useCallback(async (videoId) => {
+    const { data, error } = await supabase
+      .from("videos")
+      .select("*, clips(*)")
+      .eq("id", videoId)
+      .single();
+    
+    if (!error && data) {
+      // Map timestamps correctly (same as addVideo)
+      const mapped = {
+        ...data,
+        clips: data.clips?.map(clip => ({
+          ...clip,
+          start: clip.start_time ?? clip.start,
+          end: clip.end_time ?? clip.end
+        })) || []
+      };
+      
+      // Update local state so the data is available to components
+      setLibrary(prev => prev.map(v => v.id === videoId ? mapped : v));
+      return mapped;
+    }
+    return null;
+  }, []);
+
+  /**
    * Clears the entire library (not recommended for production DB, kept for API compat)
    */
   const clearLibrary = useCallback(async () => {
@@ -142,6 +191,7 @@ export const useLibrary = () => {
     updateVideo,
     deleteVideo,
     clearLibrary,
-    fetchLibrary
+    fetchLibrary,
+    fetchVideoDetail
   };
 };
