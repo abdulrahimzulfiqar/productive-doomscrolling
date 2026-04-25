@@ -59,7 +59,7 @@ export default function ProcessingPage() {
         if (mountedRef.current) {
           // Update the library via Hook logic
           await updateVideo(videoId, {
-            title: data.video_summary?.split('.')[0] || "AI Processed Content",
+            title: data.video_title || data.video_summary?.split('.')[0] || "AI Processed Content",
             duration: data.video_duration,
             status: "completed",
             clips: data.clips.map((c, i) => ({

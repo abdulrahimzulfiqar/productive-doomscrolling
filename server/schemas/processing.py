@@ -29,6 +29,7 @@ class ProcessVideoResponse(BaseModel):
     Outgoing payload returned to the frontend.
     """
     video_url: str
+    video_title: str # ADDED: Actual YouTube title
     video_summary: str
     video_duration: str # Formatted like "12:35"
     recommended_aspect_ratio: str

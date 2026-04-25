@@ -13,7 +13,7 @@ export const useLibrary = () => {
   const fetchLibrary = useCallback(async () => {
     const { data, error } = await supabase
       .from("videos")
-      .select(`*, clips(id, is_watched)`) // LOAD WATCH STATUS: Needed for progress bars
+      .select(`*, clips(*)`) // Fetch ALL clip columns — never miss start/end/title again
       .order("created_at", { ascending: false });
       
     if (!error && data) {
@@ -24,7 +24,8 @@ export const useLibrary = () => {
           ...clip,
           start: clip.start_time ?? clip.start,
           end: clip.end_time ?? clip.end,
-          is_watched: clip.is_watched ?? false
+          is_watched: clip.is_watched ?? false,
+          user_notes: clip.user_notes ?? ""
         })).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       }));
       setLibrary(mappedData);
@@ -58,7 +59,8 @@ export const useLibrary = () => {
           ...clip,
           start: clip.start_time ?? clip.start,
           end: clip.end_time ?? clip.end,
-          is_watched: clip.is_watched ?? false
+          is_watched: clip.is_watched ?? false,
+          user_notes: clip.user_notes ?? ""
         })).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       };
       return { video: mappedExisting, isNew: false };
@@ -173,6 +175,28 @@ export const useLibrary = () => {
   }, []);
 
   /**
+   * Saves a personal note to a specific clip
+   */
+  const saveClipNote = useCallback(async (clipId, note) => {
+    const { error } = await supabase
+      .from("clips")
+      .update({ user_notes: note })
+      .eq("id", clipId);
+
+    if (!error) {
+      // Optimistic Update
+      setLibrary(prev => prev.map(video => ({
+        ...video,
+        clips: video.clips?.map(clip => 
+          clip.id === clipId ? { ...clip, user_notes: note } : clip
+        ) || []
+      })));
+    } else {
+      console.error("Error saving note:", error);
+    }
+  }, []);
+
+  /**
    * Fetches full video data including clips for a single video.
    * Used for demand-loading when opening the Feed.
    */
@@ -191,7 +215,8 @@ export const useLibrary = () => {
           ...clip,
           start: clip.start_time ?? clip.start,
           end: clip.end_time ?? clip.end,
-          is_watched: clip.is_watched ?? false
+          is_watched: clip.is_watched ?? false,
+          user_notes: clip.user_notes ?? ""
         })).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       };
       
@@ -218,6 +243,7 @@ export const useLibrary = () => {
     fetchLibrary,
     fetchVideoDetail,
     markClipWatched,
+    saveClipNote,
     deleteVideo
   };
 };

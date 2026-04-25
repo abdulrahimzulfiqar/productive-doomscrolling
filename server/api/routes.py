@@ -87,6 +87,7 @@ async def process_video_endpoint(request: ProcessVideoRequest):
 
         return ProcessVideoResponse(
             video_url=url,
+            video_title=video_metadata.get('title', "Mindful Insights"),
             video_summary=metadata.get("video_summary", "No summary available."),
             video_duration=formatted_dur,
             recommended_aspect_ratio=metadata.get("recommended_aspect_ratio", "letterbox"),

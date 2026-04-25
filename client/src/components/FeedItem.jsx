@@ -18,8 +18,10 @@ export default function FeedItem({
   isMuted, 
   onInView 
 }) {
-  const { markClipWatched } = useLibrary();
+  const { markClipWatched, saveClipNote } = useLibrary();
   const [isPaused, setIsPaused] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState(clip.user_notes || "");
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -89,13 +91,13 @@ export default function FeedItem({
         )}
       </AnimatePresence>
 
-      {/* Stop/Play Overlay Button */}
+      {/* Stop/Play Overlay Button (Ignore if typing note) */}
       <div 
-        onClick={() => setIsPaused(!isPaused)}
-        className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer"
+        onClick={() => !showNoteInput && setIsPaused(!isPaused)}
+        className={`absolute inset-0 z-10 flex items-center justify-center ${showNoteInput ? 'pointer-events-none' : 'cursor-pointer'}`}
       >
         <AnimatePresence>
-          {isPaused && (
+          {(isPaused && !showNoteInput) && (
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -116,16 +118,62 @@ export default function FeedItem({
       )}
 
       {/* Overlay: Branding & Info */}
-      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent p-8 pb-32">
+      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent p-8 pb-32 z-20">
         <div className="max-w-md mx-auto space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="bg-emerald-500 text-black text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase">
-              Mindful Clip
-            </span>
-            <span className="text-white/40 text-xs font-medium italic">#{clip.id.split('-c')[1] || '?'}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="bg-emerald-500 text-black text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase">
+                Mindful Clip
+              </span>
+              <span className="text-white/40 text-xs font-medium italic">#{clip.id.split('-c')[1] || '?'}</span>
+            </div>
+
+            {/* Note Toggle Button */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNoteInput(!showNoteInput);
+                if (!showNoteInput) setIsPaused(true); // Pause while writing
+              }}
+              className={`p-2 rounded-full transition-all ${showNoteInput || clip.user_notes ? 'bg-primary text-black scale-110' : 'bg-white/10 text-white/40 hover:bg-white/20'}`}
+            >
+              <span className="material-symbols-outlined !text-sm">edit_note</span>
+            </button>
           </div>
           
-          <h2 className="text-2xl font-bold tracking-tight leading-tight">
+          <AnimatePresence>
+            {showNoteInput && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20 mt-2">
+                  <textarea
+                    autoFocus
+                    placeholder="Capture your insight here..."
+                    className="w-full bg-transparent border-none outline-none text-white text-sm placeholder:text-white/30 resize-none min-h-[80px]"
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                  />
+                  <div className="flex justify-end mt-2">
+                    <button 
+                      onClick={() => {
+                        saveClipNote(clip.id, noteText);
+                        setShowNoteInput(false);
+                      }}
+                      className="bg-emerald-500 text-black px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-tighter"
+                    >
+                      Save Insight
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          <h2 className={`text-2xl font-bold tracking-tight leading-tight transition-opacity ${showNoteInput ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
             {clip.title}
           </h2>
           
