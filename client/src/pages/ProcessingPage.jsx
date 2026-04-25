@@ -17,7 +17,7 @@ export default function ProcessingPage() {
   // Real-world 3-phase AI pipeline
   const steps = [
     { label: "Deep Ingestion", status: "success", time: "12s", desc: "Fetching video context & speech data..." },
-    { label: "Neural Distillation", status: "processing", time: "Analyzing...", desc: "Identifying golden nuggets & hooks with Gemini..." },
+    { label: "Neural Distillation", status: "processing", time: "Analyzing...", desc: "Identifying mindful clips & insights with Gemini..." },
     { label: "Asset Synthesis", status: "pending", time: "Queued", desc: "Formatting clips for high-impact scrolling..." }
   ];
 
@@ -68,7 +68,7 @@ export default function ProcessingPage() {
               start: c.start,
               end: c.end,
               duration: `${Math.floor((c.end - c.start)/60)}:${String(Math.floor((c.end - c.start)%60)).padStart(2, '0')}`,
-              summary: c.reason || "AI extracted nugget."
+              summary: c.reason || "AI extracted mindful clip."
             }))
           });
           

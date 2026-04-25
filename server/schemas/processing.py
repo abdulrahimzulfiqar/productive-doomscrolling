@@ -7,6 +7,12 @@ class ProcessVideoRequest(BaseModel):
     """
     url: HttpUrl = Field(..., description="The YouTube URL or local file path to process")
 
+class VideoMetadata(BaseModel):
+    id: str
+    title: str
+    duration: str
+    thumbnail: str
+
 class ClipResponse(BaseModel):
     """
     Format of a single generated clip for the frontend.

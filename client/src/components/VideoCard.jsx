@@ -52,7 +52,7 @@ function VideoCard({ video }) {
                   <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
                 </div>
                 <span className="text-[10px] font-bold text-white tracking-widest leading-none">
-                  {video.clips?.[0]?.count ?? video.clips?.length ?? 0} CLIPS
+                  {video.clips?.length || 0} CLIPS
                 </span>
              </div>
              <div className="bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-emerald-400 border border-white/5">

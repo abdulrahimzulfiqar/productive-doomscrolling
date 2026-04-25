@@ -13,7 +13,7 @@ export const useLibrary = () => {
   const fetchLibrary = useCallback(async () => {
     const { data, error } = await supabase
       .from("videos")
-      .select(`*, clips(count)`) // FAST COUNT: Get the number of clips without the data
+      .select(`*, clips(id)`) // LIGHT FETCH: Only get IDs to count them without loading heavy text
       .order("created_at", { ascending: false });
       
     if (!error && data) {
@@ -71,7 +71,7 @@ export const useLibrary = () => {
         {
           id: candidate.id,
           url: candidate.url,
-          title: candidate.title || "Processing Masterclass...",
+          title: candidate.title || "Analyzing Video...",
           image: candidate.image,
           duration: candidate.duration || "Calculating...",
           status: candidate.status || "processing"
@@ -93,13 +93,17 @@ export const useLibrary = () => {
    * Updates an existing video record
    */
   const updateVideo = useCallback(async (id, updates) => {
-    // 1. Update the videos table
+    const updatePayload = {
+      title: updates.title,
+      status: updates.status
+    };
+    if (updates.duration) {
+      updatePayload.duration = updates.duration;
+    }
+
     const { error: videoError } = await supabase
       .from("videos")
-      .update({
-        title: updates.title,
-        status: updates.status
-      })
+      .update(updatePayload)
       .eq("id", id);
 
     if (videoError) {
@@ -167,8 +171,7 @@ export const useLibrary = () => {
         clips: data.clips?.map(clip => ({
           ...clip,
           start: clip.start_time ?? clip.start,
-          end: clip.end_time ?? clip.end,
-          summary: clip.reason ?? clip.summary ?? ""
+          end: clip.end_time ?? clip.end
         })) || []
       };
       

@@ -76,7 +76,7 @@ class ViralClip(BaseModel):
 
 class SegmentationResult(BaseModel):
     """The complete segmentation output for one video."""
-    video_summary: str = Field(description="A 2 sentence summary of the entire video.")
+    video_summary: str = Field(description="A concise 2 sentence summary. IMPORTANT: Never use the word 'masterclass' or 'comprehensive guide'.")
     recommended_aspect_ratio: str = Field(
         description="ONE aspect ratio for ALL clips. Choose from: 'vertical_crop' (talking heads/podcasts), 'letterbox' (screen demos/comparisons/visual content), 'square' (mixed/general), 'original' (already vertical or unusual ratio)."
     )
@@ -108,27 +108,26 @@ def build_system_prompt(video_duration: float, chapters: list = None) -> str:
     """
 
     return f"""
-    You are an expert Video Segmentation AI for a "Productive Doomscrolling" app.
-    The app transforms long-form YouTube videos into scrollable short-form clips 
-    so users can learn the COMPLETE content of a video by scrolling through bite-sized pieces.
+    {chapter_context}
 
     CRITICAL RULES:
-    1. You MUST cover the ENTIRE video from 0.0 to {video_duration} seconds.
+    1. CHAPTER ALIGNMENT: You are provided with YOUTUBE CHAPTER MARKERS above. These are the creator's intended section breaks. You MUST start new clips exactly at these chapter timestamps. If a chapter is longer than 8 minutes, you may divide it into smaller logical clips, but NEVER start or end a clip in a way that spans across two different chapters.
+    2. You MUST cover the ENTIRE video from 0.0 to {video_duration} seconds.
        You ARE ALLOWED to have slight overlaps (e.g., 2-10 seconds) between adjacent 
        clips IF it helps preserve the flow and context for the viewer.
-    2. DURATION: Each clip must be between 60 seconds (1 minute) and 300 seconds (5 minutes) long.
-    3. INDEPENDENT CONTEXT: This is highest priority. Every single clip MUST be an 
+    3. DURATION: Each clip must be between 60 seconds (1 minute) and 480 seconds (8 minutes) long.
+    4. INDEPENDENT CONTEXT: This is highest priority. Every single clip MUST be an 
        independent, complete thought. If a user clicks on a random clip, they must 
        be able to understand the full context of what is being discussed. Do not generate 
        short fragments that lack context.
-    4. BREAKPOINTS: Focus heavily on major topic changes and transitions. Let the speaker 
-       finish their complete thought before ending the clip. 
-    5. Cover the entire video INCLUDING intros and outros — do not skip anything.
-    6. Tag each clip as 'content' (default for most), 'sponsor_ad' (if the speaker 
+    5. NATURAL BREAKPOINTS: If YouTube Chapters are provided, use them. IF NOT, you must identify "Natural Breakpoints" based on topic shifts, speaker changes, or semantic transitions (e.g., when the speaker introduces a new idea or finishes a story).
+    6. Cover the entire video INCLUDING intros and outros — do not skip anything.
+    7. Tag each clip as 'content' (default for most), 'sponsor_ad' (if the speaker 
        is clearly promoting a product/sponsor), or 'filler' (only for truly empty  
        moments like long silence or music-only transitions).
-    7. Rate each clip's virality_score from 1-10 based on educational value, 
-       entertainment, and how well it works as a standalone short clip.
+    8. Rate each clip's virality_score from 1-10 based on educational value, 
+    9. STYLE: Write in a helpful, conversational tone. Avoid academic jargon. 
+       NEVER use the word 'masterclass' or 'distilling insights'.
 
     ASPECT RATIO DECISION:
     Analyze the overall video type and choose ONE aspect ratio for ALL clips:
@@ -212,7 +211,7 @@ def segment_transcript(
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model='gemma-4-31b-it', #'gemma-4-31b-it'. 'gemini-2.5-flash-lite'
+                model='gemini-2.5-flash', #'gemma-4-31b-it'. 'gemini-2.5-flash-lite'
                 contents=transcript_text_payload,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -221,7 +220,20 @@ def segment_transcript(
                 )
             )
             
-            ai_response_json = json.loads(response.text)
+            # RARE CASE: If AI wraps in markdown or adds chatter, clean it
+            raw_text = response.text.strip()
+            if raw_text.startswith("```json"):
+                raw_text = raw_text.split("```json")[1].split("```")[0].strip()
+            elif raw_text.startswith("```"):
+                raw_text = raw_text.split("```")[1].split("```")[0].strip()
+            
+            # Robustly find the first { and last } to ignore trailing chatter
+            start_idx = raw_text.find('{')
+            end_idx = raw_text.rfind('}')
+            if start_idx != -1 and end_idx != -1:
+                raw_text = raw_text[start_idx:end_idx+1]
+
+            ai_response_json = json.loads(raw_text)
 
             # INDUSTRIAL CLEANUP: Delete the transcript file
             if os.path.exists(transcript_filepath):

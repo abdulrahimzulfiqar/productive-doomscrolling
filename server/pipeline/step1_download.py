@@ -17,6 +17,46 @@ import isodate
 
 TEMP_DIR = tempfile.gettempdir()
 
+def parse_chapters_from_description(description: str, duration_sec: int) -> list:
+    """
+    Parses timestamps (like 03:45 or 1:12:30) from the video description 
+    to create a chapter list if YouTube API didn't provide them.
+    """
+    chapters = []
+    # Regex to find lines starting with or containing timestamps [HH:MM:SS] or MM:SS
+    # Supports common formats like "03:45 Intro" or "1:02:30 The Reveal"
+    pattern = r"((?:\d{1,2}:)?\d{1,2}:\d{2})\s*-?\s*(.*)"
+    
+    matches = re.finditer(pattern, description)
+    for match in matches:
+        timestamp_str = match.group(1)
+        title = match.group(2).strip()
+        
+        # Convert timestamp to seconds
+        parts = list(map(int, timestamp_str.split(':')))
+        if len(parts) == 3: # HH:MM:SS
+            seconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
+        else: # MM:SS
+            seconds = parts[0] * 60 + parts[1]
+            
+        if seconds <= duration_sec:
+            chapters.append({
+                "start_time": seconds,
+                "title": title or "Untitled Chapter"
+            })
+            
+    # Sort chapters by time
+    chapters.sort(key=lambda x: x['start_time'])
+    
+    # Calculate end_time for each chapter
+    for i in range(len(chapters)):
+        if i < len(chapters) - 1:
+            chapters[i]['end_time'] = chapters[i+1]['start_time']
+        else:
+            chapters[i]['end_time'] = duration_sec
+            
+    return chapters
+
 def get_youtube_metadata_api(video_id: str) -> Dict[str, Any]:
     """Fetches video metadata using the official YouTube Data API v3."""
     api_key = os.environ.get("YOUTUBE_API_KEY")
@@ -28,7 +68,7 @@ def get_youtube_metadata_api(video_id: str) -> Dict[str, Any]:
         print(f"📡 Fetching metadata via Official YouTube API for {video_id}...")
         youtube = build("youtube", "v3", developerKey=api_key, cache_discovery=False)
         request = youtube.videos().list(
-            part="snippet,contentDetails",
+        part="snippet,contentDetails",
             id=video_id
         )
         response = request.execute()
@@ -39,14 +79,18 @@ def get_youtube_metadata_api(video_id: str) -> Dict[str, Any]:
             
         item = response['items'][0]
         title = item['snippet']['title']
+        description = item['snippet']['description']
         duration_iso = item['contentDetails']['duration']
-        duration_sec = isodate.parse_duration(duration_iso).total_seconds()
+        duration_sec = int(isodate.parse_duration(duration_iso).total_seconds())
         
-        print(f"   ✅ API success: {title}")
+        # Parse chapters from description
+        chapters = parse_chapters_from_description(description, duration_sec)
+        
+        print(f"   ✅ API success: {title} ({len(chapters)} chapters found)")
         return {
             "title": title,
-            "duration": int(duration_sec),
-            "chapters": [] # API chapters are complex, keeping it for now
+            "duration": duration_sec,
+            "chapters": chapters
         }
     except Exception as e:
         print(f"   ❌ YouTube API error: {e}")

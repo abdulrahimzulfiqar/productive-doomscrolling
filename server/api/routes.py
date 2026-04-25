@@ -1,7 +1,7 @@
 import os
 import json
 from fastapi import APIRouter, HTTPException
-from server.schemas.processing import ProcessVideoRequest, ProcessVideoResponse
+from server.schemas.processing import ProcessVideoRequest, ProcessVideoResponse, VideoMetadata
 
 # Import existing pipeline logic (which we will refactor shortly for Web compat)
 from server.pipeline.step1_download import download_video
@@ -9,6 +9,30 @@ from server.pipeline.step2_transcribe import process_transcription
 from server.pipeline.step3_segment import segment_transcript
 
 router = APIRouter()
+
+@router.get("/metadata")
+async def get_metadata_endpoint(url: str):
+    """
+    Fast-fetch only basic YouTube metadata (Title, Duration) for instant UI feedback.
+    """
+    try:
+        from server.pipeline.step1_download import extract_youtube_id, download_video
+        video_id = extract_youtube_id(url)
+        # Download info only (download=False)
+        video_metadata = download_video(url)
+        
+        minutes = int(video_metadata['duration'] // 60)
+        seconds = int(video_metadata['duration'] % 60)
+        formatted_dur = f"{minutes}:{seconds:02d}"
+
+        return {
+            "id": video_id,
+            "title": video_metadata['title'],
+            "duration": formatted_dur,
+            "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/process", response_model=ProcessVideoResponse)
 async def process_video_endpoint(request: ProcessVideoRequest):

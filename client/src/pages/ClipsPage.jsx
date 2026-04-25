@@ -10,10 +10,14 @@ export default function ClipsPage() {
   
   // Use local state initialized from route state
   const [video, setVideo] = React.useState(location.state?.video || null);
-  const [isLoading, setIsLoading] = React.useState(!video?.clips || video.clips.length === 0);
+  
+  // We need to fetch details if we have no clips OR if the clips are 'lightweight' (only have an id, no title)
+  const needsFullData = !video?.clips || video.clips.length === 0 || (video.clips.length > 0 && !video.clips[0].title);
+  
+  const [isLoading, setIsLoading] = React.useState(needsFullData);
 
   React.useEffect(() => {
-    if (video && (!video.clips || video.clips.length === 0)) {
+    if (video && needsFullData) {
       setIsLoading(true);
       fetchVideoDetail(video.id).then(fullVideo => {
         if (fullVideo) setVideo(fullVideo);
@@ -40,7 +44,7 @@ export default function ClipsPage() {
           <h1 className="text-sm font-bold tracking-tight truncate text-white/90">
             {video.title}
           </h1>
-          <span className="text-[10px] font-mono text-primary uppercase tracking-widest">Library / Masterclass</span>
+          <span className="text-[10px] font-mono text-primary uppercase tracking-widest">Library / Flow</span>
         </div>
       </header>
 
@@ -61,13 +65,13 @@ export default function ClipsPage() {
                animate={{ opacity: 1, y: 0 }}
                className="bg-black/40 backdrop-blur-md rounded-2xl p-4 border border-white/10"
             >
-               <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-emerald-400 text-sm">auto_awesome</span>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Mindful Summary</span>
-               </div>
-               <p className="text-[13px] text-white/90 leading-relaxed italic font-medium">
-                 "This masterclass dives deep into {video.title}, distilling {video.clips?.length} core insights for high-impact learning."
-               </p>
+                <div className="flex items-center gap-2 mb-2">
+                   <span className="material-symbols-outlined text-emerald-400 text-sm">auto_awesome</span>
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Mindful Summary</span>
+                </div>
+                <p className="text-[13px] text-white/90 leading-relaxed italic font-medium">
+                  "{video.video_summary || video.title}"
+                </p>
             </motion.div>
           </div>
         </div>
@@ -75,7 +79,7 @@ export default function ClipsPage() {
         {/* Clips List Section */}
         <section className="px-6 pt-10 space-y-6">
           <div className="flex justify-between items-end">
-            <h2 className="text-2xl font-black tracking-tighter text-white">Golden Nuggets</h2>
+            <h2 className="text-2xl font-black tracking-tighter text-white">Mindful Clips</h2>
             <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{video.clips?.length || 0} Lessons</span>
           </div>
           
@@ -114,15 +118,13 @@ export default function ClipsPage() {
 
                     <div className="flex-grow overflow-hidden">
                       <div className="flex justify-between items-center mb-1">
-                          <h3 className="font-bold text-[15px] truncate text-white/90 group-hover:text-primary transition-colors">
-                            {clip.title || `Insight #${index + 1}`}
-                          </h3>
+                          <h3 className="font-bold text-[15px] truncate text-white/90 group-hover:text-primary transition-colors">{clip.title}</h3>
                           <div className="flex items-center gap-1 opacity-60">
-                             <span className="text-[10px] font-mono text-emerald-400">{clip.duration || "0:00"}</span>
+                             <span className="text-[10px] font-mono text-emerald-400">{clip.duration}</span>
                           </div>
                       </div>
                       <p className="text-[12px] text-white/50 line-clamp-2 leading-relaxed opacity-80">
-                        {clip.summary || clip.reason || "No summary available."}
+                        {clip.summary}
                       </p>
                     </div>
                   </div>

@@ -20,12 +20,33 @@ export default function AddVideoPage() {
         return;
       }
 
-      const newVideo = {
+      // 1. FAST METADATA FETCH
+      let meta = {
         id: videoId,
-        url: url.trim(),
-        title: "Processing Masterclass...",
-        image: getYoutubeThumbnail(videoId),
+        title: "Analyzing Video...",
         duration: "Calculating...",
+        image: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`
+      };
+
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+        const metaRes = await fetch(`${backendUrl}/api/v1/metadata?url=${encodeURIComponent(url.trim())}`);
+        if (metaRes.ok) {
+           const metaData = await metaRes.json();
+           meta = {
+             id: metaData.id,
+             title: metaData.title,
+             duration: metaData.duration,
+             image: metaData.thumbnail
+           };
+        }
+      } catch (err) {
+        console.warn("Fast metadata fetch failed, using defaults:", err);
+      }
+
+      const newVideo = {
+        ...meta,
+        url: url.trim(),
         status: "processing",
         clips: [] 
       };
