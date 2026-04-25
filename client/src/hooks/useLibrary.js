@@ -167,7 +167,8 @@ export const useLibrary = () => {
         clips: data.clips?.map(clip => ({
           ...clip,
           start: clip.start_time ?? clip.start,
-          end: clip.end_time ?? clip.end
+          end: clip.end_time ?? clip.end,
+          summary: clip.reason ?? clip.summary ?? ""
         })) || []
       };
       

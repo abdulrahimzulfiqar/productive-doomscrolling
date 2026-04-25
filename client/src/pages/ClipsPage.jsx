@@ -114,13 +114,15 @@ export default function ClipsPage() {
 
                     <div className="flex-grow overflow-hidden">
                       <div className="flex justify-between items-center mb-1">
-                          <h3 className="font-bold text-[15px] truncate text-white/90 group-hover:text-primary transition-colors">{clip.title}</h3>
+                          <h3 className="font-bold text-[15px] truncate text-white/90 group-hover:text-primary transition-colors">
+                            {clip.title || `Insight #${index + 1}`}
+                          </h3>
                           <div className="flex items-center gap-1 opacity-60">
-                             <span className="text-[10px] font-mono text-emerald-400">{clip.duration}</span>
+                             <span className="text-[10px] font-mono text-emerald-400">{clip.duration || "0:00"}</span>
                           </div>
                       </div>
                       <p className="text-[12px] text-white/50 line-clamp-2 leading-relaxed opacity-80">
-                        {clip.summary}
+                        {clip.summary || clip.reason || "No summary available."}
                       </p>
                     </div>
                   </div>
