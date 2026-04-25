@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useInView } from "react-intersection-observer";
 import YouTubePlayer from "./YouTubePlayer";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLibrary } from "../hooks/useLibrary";
 
 /**
  * FeedItem Component
@@ -17,6 +18,8 @@ export default function FeedItem({
   isMuted, 
   onInView 
 }) {
+  const { markClipWatched } = useLibrary();
+  const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -27,10 +30,27 @@ export default function FeedItem({
 
   // Notify parent when this specific item becomes the center of attention
   React.useEffect(() => {
+    let watchTimer;
+
     if (inView) {
       onInView(clip.id);
+      
+      // Industrial Watch Rule: 5 seconds of active view = Watched
+      if (!clip.is_watched) {
+        watchTimer = setTimeout(() => {
+          console.log(`[FeedItem] Marking clip ${clip.id} as watched...`);
+          markClipWatched(clip.id);
+        }, 10000); // 10 seconds of active view = Mastery
+      }
+    } else {
+      // Auto-pause when scrolling away
+      setIsPaused(false);
     }
-  }, [inView, clip.id, onInView]);
+
+    return () => {
+      if (watchTimer) clearTimeout(watchTimer);
+    };
+  }, [inView, clip.id, clip.is_watched, onInView, markClipWatched]);
 
   return (
     <div 
@@ -61,12 +81,32 @@ export default function FeedItem({
               start={clip.start} 
               end={clip.end} 
               isMuted={isMuted}
+              isPaused={isPaused}
               onProgress={(p) => setProgress(p)}
               onReady={() => setIsLoading(false)}
             />
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Stop/Play Overlay Button */}
+      <div 
+        onClick={() => setIsPaused(!isPaused)}
+        className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer"
+      >
+        <AnimatePresence>
+          {isPaused && (
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.2, opacity: 0 }}
+              className="w-20 h-20 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10"
+            >
+              <span className="material-symbols-outlined text-white text-5xl">play_arrow</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Loading Spinner */}
       {isActive && isLoading && (
@@ -80,7 +120,7 @@ export default function FeedItem({
         <div className="max-w-md mx-auto space-y-4">
           <div className="flex items-center gap-2">
             <span className="bg-emerald-500 text-black text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase">
-              Golden Nugget
+              Mindful Clip
             </span>
             <span className="text-white/40 text-xs font-medium italic">#{clip.id.split('-c')[1] || '?'}</span>
           </div>

@@ -13,7 +13,7 @@ export const useLibrary = () => {
   const fetchLibrary = useCallback(async () => {
     const { data, error } = await supabase
       .from("videos")
-      .select(`*, clips(id)`) // LIGHT FETCH: Only get IDs to count them without loading heavy text
+      .select(`*, clips(id, is_watched)`) // LOAD WATCH STATUS: Needed for progress bars
       .order("created_at", { ascending: false });
       
     if (!error && data) {
@@ -22,10 +22,10 @@ export const useLibrary = () => {
         ...video,
         clips: video.clips?.map(clip => ({
           ...clip,
-          // DEFENSIVE: Accept both names just in case
           start: clip.start_time ?? clip.start,
-          end: clip.end_time ?? clip.end
-        })) || []
+          end: clip.end_time ?? clip.end,
+          is_watched: clip.is_watched ?? false
+        })).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       }));
       setLibrary(mappedData);
     } else if (error) {
@@ -56,10 +56,10 @@ export const useLibrary = () => {
         ...existing,
         clips: existing.clips?.map(clip => ({
           ...clip,
-          // DEFENSIVE: Accept both names just in case
           start: clip.start_time ?? clip.start,
-          end: clip.end_time ?? clip.end
-        })) || []
+          end: clip.end_time ?? clip.end,
+          is_watched: clip.is_watched ?? false
+        })).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       };
       return { video: mappedExisting, isNew: false };
     }
@@ -137,9 +137,6 @@ export const useLibrary = () => {
   }, [fetchLibrary]);
 
 
-  /**
-   * Deletes a video from the library.
-   */
   const deleteVideo = useCallback(async (id) => {
     const { error } = await supabase
       .from("videos")
@@ -150,6 +147,28 @@ export const useLibrary = () => {
       setLibrary(prev => prev.filter(v => v.id !== id));
     } else {
       console.error("Error deleting video:", error);
+    }
+  }, []);
+
+  /**
+   * Marks a specific clip as watched in Supabase
+   */
+  const markClipWatched = useCallback(async (clipId) => {
+    const { error } = await supabase
+      .from("clips")
+      .update({ is_watched: true })
+      .eq("id", clipId);
+
+    if (!error) {
+      // Optimitic Update: Update local state immediately
+      setLibrary(prev => prev.map(video => ({
+        ...video,
+        clips: video.clips?.map(clip => 
+          clip.id === clipId ? { ...clip, is_watched: true } : clip
+        ) || []
+      })));
+    } else {
+      console.error("Error marking clip as watched:", error);
     }
   }, []);
 
@@ -171,8 +190,9 @@ export const useLibrary = () => {
         clips: data.clips?.map(clip => ({
           ...clip,
           start: clip.start_time ?? clip.start,
-          end: clip.end_time ?? clip.end
-        })) || []
+          end: clip.end_time ?? clip.end,
+          is_watched: clip.is_watched ?? false
+        })).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       };
       
       // Update local state so the data is available to components
@@ -196,6 +216,8 @@ export const useLibrary = () => {
     deleteVideo,
     clearLibrary,
     fetchLibrary,
-    fetchVideoDetail
+    fetchVideoDetail,
+    markClipWatched,
+    deleteVideo
   };
 };

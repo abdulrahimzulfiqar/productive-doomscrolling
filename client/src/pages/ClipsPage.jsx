@@ -111,7 +111,12 @@ export default function ClipsPage() {
                 >
                   <div className="flex items-center gap-4 p-4 rounded-[1.7rem] bg-slate-900/40 group-hover:bg-emerald-500/10 transition-colors">
                     {/* Lesson Index */}
-                    <div className="w-14 h-14 rounded-2xl bg-white/5 flex flex-col items-center justify-center border border-white/5 group-hover:border-emerald-500/30 transition-all">
+                    <div className="w-14 h-14 rounded-2xl bg-white/5 flex flex-col items-center justify-center border border-white/5 group-hover:border-emerald-500/30 transition-all relative">
+                      {clip.is_watched && (
+                        <div className="absolute -top-1 -right-1 bg-emerald-500 text-black rounded-full p-0.5 border-2 border-slate-900 z-10">
+                           <span className="material-symbols-outlined text-[10px] font-black">check</span>
+                        </div>
+                      )}
                       <span className="text-[10px] font-mono text-white/40 group-hover:text-emerald-400">#{index + 1}</span>
                       <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">play_arrow</span>
                     </div>

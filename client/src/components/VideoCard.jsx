@@ -51,9 +51,16 @@ function VideoCard({ video }) {
                 <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                   <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
                 </div>
-                <span className="text-[10px] font-bold text-white tracking-widest leading-none">
-                  {video.clips?.length || 0} CLIPS
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-black text-white/50 tracking-widest leading-none uppercase">
+                    {video.clips?.length || 0} CLIPS
+                  </span>
+                  {video.clips?.length > 0 && (
+                    <span className="text-[9px] font-bold text-emerald-400 tracking-tighter">
+                      {Math.round((video.clips?.filter(c => c.is_watched).length / video.clips.length) * 100)}% WATCHED
+                    </span>
+                  )}
+                </div>
              </div>
              <div className="bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-emerald-400 border border-white/5">
                 {video.duration || "0:00"}

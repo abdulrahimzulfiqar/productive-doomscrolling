@@ -6,9 +6,20 @@ import YouTube from "react-youtube";
  * Handles the logic for playing a specific segment of a video.
  * Loops automatically between start and end times.
  */
-export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted }) {
+export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted, isPaused }) {
   const playerRef = useRef(null);
   const scrollInterval = useRef(null);
+
+  // Sync play/pause state
+  useEffect(() => {
+    if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+      if (isPaused) {
+        playerRef.current.pauseVideo();
+      } else {
+        playerRef.current.playVideo();
+      }
+    }
+  }, [isPaused]);
 
   // Sync mute state when prop changes
   useEffect(() => {
