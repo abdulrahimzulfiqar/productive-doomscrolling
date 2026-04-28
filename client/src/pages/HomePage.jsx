@@ -5,87 +5,149 @@ import VideoCard from "../components/VideoCard";
 import { useLibrary } from "../hooks/useLibrary";
 
 /**
- * InsightCard Component
- * A specialized horizontal card for the 'My Insights' tab.
- * Supports expansion to show clip summaries.
+ * ClipNote Component
+ * A single clip's note within a video group.
+ * Shows clip title, the user's note, and a Re-watch button.
  */
-function InsightCard({ note, onPlay }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+function ClipNote({ clip, onPlay, onDelete }) {
+  const [showSummary, setShowSummary] = useState(false);
 
   return (
-    <div 
-      className="group bg-slate-900/40 border border-white/5 rounded-[2rem] overflow-hidden hover:border-emerald-500/30 transition-all cursor-pointer active:scale-[0.98]"
-      onClick={() => setIsExpanded(!isExpanded)}
-    >
-      {/* Header: Thumbnail + Title + Toggle */}
-      <div className="flex gap-4 p-5">
+    <div className="bg-slate-800/50 border border-white/5 rounded-2xl overflow-hidden">
+      {/* Clip Header */}
+      <div 
+        className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/5 transition-colors"
+        onClick={() => setShowSummary(!showSummary)}
+      >
+        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+          <span className="material-symbols-outlined text-emerald-400 !text-lg">play_arrow</span>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <h4 className="text-sm font-bold text-white/90 truncate">{clip.title}</h4>
+          <span className="text-[10px] font-mono text-white/30">{clip.duration}</span>
+        </div>
+        <span className={`material-symbols-outlined text-white/20 !text-lg transition-transform duration-300 ${showSummary ? 'rotate-180 text-emerald-400' : ''}`}>
+          expand_more
+        </span>
+      </div>
+
+      {/* AI Summary (expandable) */}
+      <AnimatePresence>
+        {showSummary && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3">
+              <p className="text-[12px] text-white/40 leading-relaxed pl-3 border-l border-emerald-500/20">
+                {clip.summary}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* User Note — always visible */}
+      <div className="mx-4 mb-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-emerald-400 !text-sm">format_quote</span>
+            <span className="text-[9px] font-bold text-emerald-400/50 uppercase tracking-tighter">Your Note</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="relative z-30 w-7 h-7 flex items-center justify-center rounded-full bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white transition-all active:scale-90"
+              title="Delete note"
+            >
+              <span className="material-symbols-outlined !text-[14px]">delete</span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onPlay(); }}
+              className="relative z-30 flex items-center gap-1.5 bg-emerald-400/10 hover:bg-emerald-400 px-3 py-1 rounded-full text-emerald-400 hover:text-slate-950 transition-all active:scale-95"
+            >
+              <span className="text-[9px] font-black uppercase tracking-widest">Re-watch</span>
+              <span className="material-symbols-outlined !text-sm">play_circle</span>
+            </button>
+          </div>
+        </div>
+        <p className="text-[13px] text-white/90 italic leading-relaxed break-words">
+          "{clip.user_notes}"
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * VideoInsightGroup Component
+ * Groups all noted clips under their parent video.
+ * Click to expand and see individual clip notes.
+ */
+function VideoInsightGroup({ videoData, navigate, onDeleteNote }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { video, notedClips } = videoData;
+
+  return (
+    <div className="bg-slate-900/40 border border-white/5 rounded-[2rem] overflow-hidden hover:border-emerald-500/20 transition-all">
+      {/* Video Header — always visible */}
+      <div 
+        className="flex gap-4 p-5 cursor-pointer active:scale-[0.98] transition-transform"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
         <div className="w-24 aspect-video rounded-xl overflow-hidden flex-shrink-0 bg-white/5 border border-white/10 shadow-lg">
-          <img src={note.videoImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
+          <img src={video.image} className="w-full h-full object-cover" alt="" />
         </div>
         <div className="flex flex-col justify-center flex-1 overflow-hidden">
-          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest truncate mb-1">
-            {note.videoTitle}
-          </p>
-          <h3 className="text-sm font-bold text-white line-clamp-1">
-            {note.title}
-          </h3>
-        </div>
-        <div className="flex flex-col items-center justify-center">
-           <span className={`material-symbols-outlined text-white/20 transition-all duration-300 ${isExpanded ? 'rotate-180 text-emerald-400' : ''}`}>
-             expand_more
-           </span>
-        </div>
-      </div>
-
-      <div className="px-5 pb-5 pt-0">
-        {/* The Animated Drawer: Summary */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="pb-4 pt-1">
-                <p className="text-[12px] text-white/40 leading-relaxed pl-2 border-l border-emerald-500/30">
-                  {note.summary}
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* The Fixed Note: Always Visible */}
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 mt-2">
-          <div className="flex items-center justify-between mb-2">
-             <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-400 !text-sm">format_quote</span>
-                <span className="text-[10px] font-bold text-emerald-400/50 uppercase tracking-tighter">Your Insight</span>
-             </div>
-             <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPlay();
-                }}
-                className="relative z-30 flex items-center gap-1.5 bg-emerald-400/10 hover:bg-emerald-400 px-3 py-1 rounded-full text-emerald-400 hover:text-slate-950 transition-all active:scale-95 group/btn"
-             >
-                <span className="text-[9px] font-black uppercase tracking-widest">Re-watch</span>
-                <span className="material-symbols-outlined !text-sm group-hover/btn:scale-110 transition-transform">play_circle</span>
-             </button>
+          <h3 className="text-sm font-bold text-white/90 line-clamp-2 mb-1.5">{video.title}</h3>
+          <div className="flex items-center gap-2">
+            <span className="bg-emerald-500/15 text-emerald-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+              {notedClips.length} {notedClips.length === 1 ? 'note' : 'notes'}
+            </span>
           </div>
-          <p className="text-[13px] text-white/90 italic leading-relaxed break-words">
-            "{note.user_notes}"
-          </p>
+        </div>
+        <div className="flex items-center">
+          <span className={`material-symbols-outlined text-white/20 transition-all duration-300 ${isExpanded ? 'rotate-180 text-emerald-400' : ''}`}>
+            expand_more
+          </span>
         </div>
       </div>
+
+      {/* Expanded: All noted clips */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-5 space-y-3">
+              {notedClips.map((clip) => (
+                <ClipNote
+                  key={clip.id}
+                  clip={clip}
+                  onPlay={() => {
+                    const singleClipVideo = { ...video, clips: [clip] };
+                    navigate("/feed", { state: { video: singleClipVideo, clip } });
+                  }}
+                  onDelete={() => onDeleteNote(clip.id)}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { library } = useLibrary();
+  const { library, saveClipNote } = useLibrary();
   const [activeTab, setActiveTab] = useState("Videos");
   
   const tabs = ["Videos", "My Insights"];
@@ -95,23 +157,24 @@ export default function HomePage() {
     return library.filter(v => v.status !== 'failed');
   }, [library]);
 
-  // Extract all clips that have notes across the entire library
-  const allNotes = React.useMemo(() => {
-    const notes = [];
+  // Group clips-with-notes by their parent video
+  const { groupedInsights, totalNotes } = React.useMemo(() => {
+    const videoMap = new Map(); // videoId → { video, notedClips[] }
+    let count = 0;
+
     library.forEach(video => {
       video.clips?.forEach(clip => {
         if (clip.user_notes) {
-          notes.push({
-            ...clip,
-            videoTitle: video.title,
-            videoImage: video.image,
-            fullVideo: video
-          });
+          count++;
+          if (!videoMap.has(video.id)) {
+            videoMap.set(video.id, { video, notedClips: [] });
+          }
+          videoMap.get(video.id).notedClips.push(clip);
         }
       });
     });
-    // Newest notes first (or chronological based on video list)
-    return notes;
+
+    return { groupedInsights: Array.from(videoMap.values()), totalNotes: count };
   }, [library]);
   
   return (
@@ -159,7 +222,7 @@ export default function HomePage() {
                     : "bg-surface-container-high text-on-surface font-medium hover:bg-surface-variant"
                 }`}
               >
-                {tab === "My Insights" && allNotes.length > 0 ? `${tab} (${allNotes.length})` : tab}
+                {tab === "My Insights" && totalNotes > 0 ? `${tab} (${totalNotes})` : tab}
               </button>
             ))}
           </div>
@@ -196,16 +259,13 @@ export default function HomePage() {
           </section>
         ) : (
           <section className="max-w-lg mx-auto space-y-6">
-            {allNotes.length > 0 ? (
-              allNotes.map((note) => (
-                <InsightCard 
-                  key={note.id} 
-                  note={note} 
-                  onPlay={() => {
-                    // Create a video object with ONLY this clip — simple, no scroll
-                    const singleClipVideo = { ...note.fullVideo, clips: [note] };
-                    navigate("/feed", { state: { video: singleClipVideo, clip: note } });
-                  }}
+            {groupedInsights.length > 0 ? (
+              groupedInsights.map((videoData) => (
+                <VideoInsightGroup
+                  key={videoData.video.id}
+                  videoData={videoData}
+                  navigate={navigate}
+                  onDeleteNote={(clipId) => saveClipNote(clipId, '')}
                 />
               ))
             ) : (
