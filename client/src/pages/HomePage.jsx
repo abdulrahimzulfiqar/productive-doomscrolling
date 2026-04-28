@@ -73,7 +73,7 @@ function ClipNote({ clip, onPlay, onDelete }) {
             </button>
           </div>
         </div>
-        <p className="text-[13px] text-white/90 italic leading-relaxed break-words">
+        <p className="text-[13px] text-white/90 italic leading-relaxed break-words whitespace-pre-wrap">
           "{clip.user_notes}"
         </p>
       </div>
