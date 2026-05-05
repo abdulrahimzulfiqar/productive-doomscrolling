@@ -189,7 +189,7 @@ export default function HomePage() {
             />
           </div>
           <h1 className="font-lexend tracking-tight text-xl font-bold text-emerald-400">
-            The Mindful Flow
+            Udoom
           </h1>
         </div>
         <button className="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 transition-transform duration-200">

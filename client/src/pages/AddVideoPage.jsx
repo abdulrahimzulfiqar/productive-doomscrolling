@@ -67,7 +67,7 @@ export default function AddVideoPage() {
     <div className="min-h-screen bg-background text-on-surface pb-12">
       {/* Header - Already handled by App layout, but we can add secondary refinement if needed */}
       <header className="fixed top-0 w-full z-40 bg-slate-950/60 backdrop-blur-xl flex justify-between items-center px-6 py-4">
-        <h1 className="text-xl font-bold tracking-tighter text-emerald-400 font-lexend">The Mindful Flow</h1>
+        <h1 className="text-xl font-bold tracking-tighter text-emerald-400 font-lexend">Udoom</h1>
         <button className="text-slate-400">
            <span className="material-symbols-outlined">settings</span>
         </button>
