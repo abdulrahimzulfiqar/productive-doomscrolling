@@ -1,8 +1,16 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import VideoCard from "../components/VideoCard";
 import { useLibrary } from "../hooks/useLibrary";
+
+const PRIVATE_VIDEO_TITLES = [
+  "End Of Time Final Call",
+  "Dr Israr Full Lecture In India",
+  "The World is Going To Sh*t",
+  "My Honest Thoughts On Islam",
+  "explores critical parenting strategies"
+];
 
 /**
  * ClipNote Component
@@ -147,22 +155,39 @@ function VideoInsightGroup({ videoData, navigate, onDeleteNote }) {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { library, saveClipNote } = useLibrary();
   const [activeTab, setActiveTab] = useState("Videos");
   
   const tabs = ["Videos", "My Insights"];
 
+  // Check if owner mode is enabled via URL parameter
+  const isOwner = new URLSearchParams(location.search).get("owner") === "true";
+
+  // Filter library based on owner mode
+  const visibleLibrary = React.useMemo(() => {
+    if (isOwner) return library; // Owner sees everything
+    
+    return library.filter(video => {
+      const title = video.title || "";
+      // Hide video if its title matches any of the private titles
+      return !PRIVATE_VIDEO_TITLES.some(privateTitle => 
+        title.toLowerCase().includes(privateTitle.toLowerCase())
+      );
+    });
+  }, [library, isOwner]);
+
   // Industrial Performance: Memoize the filtered list
   const filteredVideos = React.useMemo(() => {
-    return library.filter(v => v.status !== 'failed');
-  }, [library]);
+    return visibleLibrary.filter(v => v.status !== 'failed');
+  }, [visibleLibrary]);
 
   // Group clips-with-notes by their parent video
   const { groupedInsights, totalNotes } = React.useMemo(() => {
     const videoMap = new Map(); // videoId → { video, notedClips[] }
     let count = 0;
 
-    library.forEach(video => {
+    visibleLibrary.forEach(video => {
       video.clips?.forEach(clip => {
         if (clip.user_notes) {
           count++;
@@ -175,7 +200,7 @@ export default function HomePage() {
     });
 
     return { groupedInsights: Array.from(videoMap.values()), totalNotes: count };
-  }, [library]);
+  }, [visibleLibrary]);
   
   return (
     <>

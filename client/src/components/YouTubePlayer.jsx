@@ -47,22 +47,36 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
       rel: 0,
       showinfo: 0,
       iv_load_policy: 3,
+      cc_load_policy: 0, // Forces captions OFF
       start: Math.floor(start),
     },
   };
 
   const onPlayerReady = (event) => {
     playerRef.current = event.target;
-    
+
     // Initial mute state
     if (isMuted) {
       playerRef.current.mute();
     } else {
       playerRef.current.unMute();
     }
-    
+
+    // Aggressively try to turn off Captions via the Player API
+    try {
+      if (typeof playerRef.current.unloadModule === 'function') {
+        playerRef.current.unloadModule("captions");
+        playerRef.current.unloadModule("cc");
+      }
+      if (typeof playerRef.current.setOption === 'function') {
+        playerRef.current.setOption('captions', 'track', {});
+      }
+    } catch (e) {
+      // Ignore errors if the API doesn't support these undocumented methods
+    }
+
     if (scrollInterval.current) clearInterval(scrollInterval.current);
-    
+
     scrollInterval.current = setInterval(() => {
       // Defensive Check: Ensure player exists and is not destroyed
       if (!playerRef.current || typeof playerRef.current.getCurrentTime !== 'function') {
@@ -71,7 +85,7 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
 
       try {
         const currentTime = playerRef.current.getCurrentTime();
-        
+
         // 1. Handle Segment Looping
         if (currentTime >= end) {
           playerRef.current.seekTo(start);
@@ -105,9 +119,9 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
 
   return (
     <div className="w-full h-full bg-black overflow-hidden pointer-events-none">
-      <YouTube 
-        videoId={videoId} 
-        opts={opts} 
+      <YouTube
+        videoId={videoId}
+        opts={opts}
         onReady={onPlayerReady}
         className="youtube-container"
         iframeClassName="youtube-iframe"
