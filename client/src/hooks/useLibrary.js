@@ -20,6 +20,7 @@ export const useLibrary = () => {
       // Map Supabase snake_case back to frontend camelCase/Short names
       const mappedData = data.map(video => ({
         ...video,
+        aspectRatio: video.aspect_ratio, // Map snake_case to camelCase
         clips: video.clips?.map(clip => ({
           ...clip,
           start: clip.start_time ?? clip.start,
@@ -55,6 +56,7 @@ export const useLibrary = () => {
       // Map timestamps for the existing record too
       const mappedExisting = {
         ...existing,
+        aspectRatio: existing.aspect_ratio,
         clips: existing.clips?.map(clip => ({
           ...clip,
           start: clip.start_time ?? clip.start,
@@ -76,15 +78,17 @@ export const useLibrary = () => {
           title: candidate.title || "Analyzing Video...",
           image: candidate.image,
           duration: candidate.duration || "Calculating...",
-          status: candidate.status || "processing"
+          status: candidate.status || "processing",
+          aspect_ratio: candidate.aspectRatio || "9:16"
         }
       ])
       .select(`*, clips(*)`)
       .single();
 
     if (!error && data) {
-      setLibrary(prev => [data, ...prev]);
-      return { video: data, isNew: true };
+      const mappedNew = { ...data, aspectRatio: data.aspect_ratio };
+      setLibrary(prev => [mappedNew, ...prev]);
+      return { video: mappedNew, isNew: true };
     }
     
     console.error("Error inserting video:", error);
@@ -211,6 +215,7 @@ export const useLibrary = () => {
       // Map timestamps correctly (same as addVideo)
       const mapped = {
         ...data,
+        aspectRatio: data.aspect_ratio,
         clips: data.clips?.map(clip => ({
           ...clip,
           start: clip.start_time ?? clip.start,

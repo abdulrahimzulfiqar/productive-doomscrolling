@@ -57,7 +57,7 @@ export default function FeedItem({
   return (
     <div 
       ref={ref}
-      className="h-screen w-full flex-shrink-0 snap-start relative bg-black flex flex-col items-center justify-center overflow-hidden"
+      className="h-full w-full flex-shrink-0 snap-start relative bg-black flex flex-col items-center justify-center overflow-hidden"
     >
       {/* Background Layer: Thumbnail placeholder for performance */}
       {!isActive && (
@@ -84,6 +84,7 @@ export default function FeedItem({
               end={clip.end} 
               isMuted={isMuted}
               isPaused={isPaused}
+              aspectRatio={video.aspectRatio || "9:16"}
               onProgress={(p) => setProgress(p)}
               onReady={() => setIsLoading(false)}
             />
@@ -118,12 +119,12 @@ export default function FeedItem({
       )}
 
       {/* Overlay: Branding & Info */}
-      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent p-8 pb-32 z-20">
+      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent p-8 pb-12 z-20">
         <div className="max-w-md mx-auto space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="bg-emerald-500 text-black text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase">
-                Mindful Clip
+                Udoom Clip
               </span>
               <span className="text-white/40 text-xs font-medium italic">#{clip.id.split('-c')[1] || '?'}</span>
             </div>

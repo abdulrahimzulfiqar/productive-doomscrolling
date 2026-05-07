@@ -4,13 +4,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import VideoCard from "../components/VideoCard";
 import { useLibrary } from "../hooks/useLibrary";
 
-const PRIVATE_VIDEO_TITLES = [
-  "End Of Time Final Call",
-  "Dr Israr Full Lecture In India",
-  "The World is Going To Sh*t",
-  "My Honest Thoughts On Islam",
-  "explores critical parenting strategies"
+const PRIVATE_VIDEO_IDS = [
+  "_fiazQ-8Md4", // End Of Time Final Call
+  "sf3Dl-59Vxk", // Dr Israr Full Lecture In India
+  "LFuDG_6mNzk", // The World is Going To Sh*t
+  "nUcvHgXeSnE", // My Honest Thoughts On Islam
+  "L9wgz-ADMxY", // explores critical parenting strategies
+  "Cf4uQg03jYg"  // What is Capitalism
 ];
+
+// Timestamp Cutoff: Any video uploaded AFTER this date will automatically be hidden from YC
+// This guarantees that all new videos go to the Owner flag
+const YC_CUTOFF_DATE = new Date("2026-05-07T10:00:00Z").getTime();
 
 /**
  * ClipNote Component
@@ -169,11 +174,16 @@ export default function HomePage() {
     if (isOwner) return library; // Owner sees everything
     
     return library.filter(video => {
-      const title = video.title || "";
-      // Hide video if its title matches any of the private titles
-      return !PRIVATE_VIDEO_TITLES.some(privateTitle => 
-        title.toLowerCase().includes(privateTitle.toLowerCase())
-      );
+      // 1. Hide Future Uploads
+      if (video.created_at) {
+        const uploadDate = new Date(video.created_at).getTime();
+        if (uploadDate > YC_CUTOFF_DATE) {
+          return false; // Hide from YC
+        }
+      }
+
+      // 2. Hide Specific Private Videos
+      return !PRIVATE_VIDEO_IDS.includes(video.id);
     });
   }, [library, isOwner]);
 

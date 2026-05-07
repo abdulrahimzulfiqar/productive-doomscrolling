@@ -67,7 +67,7 @@ export default function ClipsPage() {
             >
                 <div className="flex items-center gap-2 mb-2">
                    <span className="material-symbols-outlined text-emerald-400 text-sm">auto_awesome</span>
-                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Mindful Summary</span>
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Udoom Summary</span>
                 </div>
                 <p className="text-[13px] text-white/90 leading-relaxed italic font-medium">
                   "{video.video_summary || video.title}"
@@ -79,7 +79,7 @@ export default function ClipsPage() {
         {/* Clips List Section */}
         <section className="px-6 pt-10 space-y-6">
           <div className="flex justify-between items-end">
-            <h2 className="text-2xl font-black tracking-tighter text-white">Mindful Clips</h2>
+            <h2 className="text-2xl font-black tracking-tighter text-white">Udoom Clips</h2>
             <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{video.clips?.length || 0} Lessons</span>
           </div>
           

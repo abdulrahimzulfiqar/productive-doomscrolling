@@ -9,6 +9,7 @@ export default function AddVideoPage() {
   const { addVideo } = useLibrary();
   const [showInput, setShowInput] = useState(false);
   const [url, setUrl] = useState("");
+  const [aspectRatio, setAspectRatio] = useState(null);
 
   const handleProcess = async (e) => {
     e.preventDefault();
@@ -47,6 +48,7 @@ export default function AddVideoPage() {
       const newVideo = {
         ...meta,
         url: url.trim(),
+        aspectRatio: aspectRatio,
         status: "processing",
         clips: [] 
       };
@@ -157,18 +159,41 @@ export default function AddVideoPage() {
                     />
                   </div>
 
+                  <div className="pt-2">
+                    <div className="flex gap-4 justify-center">
+                      <button 
+                        onClick={() => setAspectRatio("1:1")}
+                        className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition-all ${aspectRatio === '1:1' ? 'border-primary bg-primary/10 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-slate-400 hover:border-primary/50 hover:text-primary/70'}`}
+                      >
+                        <div className="w-8 h-8 border-[3px] border-current rounded-sm"></div>
+                      </button>
+                      <button 
+                        onClick={() => setAspectRatio("16:9")}
+                        className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition-all ${aspectRatio === '16:9' ? 'border-primary bg-primary/10 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-slate-400 hover:border-primary/50 hover:text-primary/70'}`}
+                      >
+                        <div className="w-10 h-6 border-[3px] border-current rounded-sm"></div>
+                      </button>
+                      <button 
+                        onClick={() => setAspectRatio("9:16")}
+                        className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition-all ${aspectRatio === '9:16' ? 'border-primary bg-primary/10 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-slate-400 hover:border-primary/50 hover:text-primary/70'}`}
+                      >
+                        <div className="w-6 h-10 border-[3px] border-current rounded-sm"></div>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Action Button Section - specifically for the link input */}
                   <div className="pt-4">
                     <motion.button 
-                      disabled={!url.trim()}
+                      disabled={!url.trim() || !aspectRatio}
                       onClick={handleProcess}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ 
-                        opacity: url.trim() ? 1 : 0.4,
+                        opacity: (url.trim() && aspectRatio) ? 1 : 0.4,
                         y: 0,
-                        scale: url.trim() ? 1 : 0.98
+                        scale: (url.trim() && aspectRatio) ? 1 : 0.98
                       }}
-                      className="w-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-emerald-600 text-slate-950 py-5 rounded-full font-bold shadow-[0_0_25px_rgba(62,180,137,0.3)] hover:shadow-[0_0_35px_rgba(62,180,137,0.5)] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:cursor-not-allowed"
+                      className="w-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-emerald-600 text-slate-950 py-5 rounded-full font-bold shadow-[0_0_25px_rgba(62,180,137,0.3)] hover:shadow-[0_0_35px_rgba(62,180,137,0.5)] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:cursor-not-allowed disabled:hover:shadow-none"
                     >
                       <span className="text-lg">Let's Go</span>
                       <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>

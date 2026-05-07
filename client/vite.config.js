@@ -11,7 +11,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Productive Doomscrolling',
-        short_name: 'MindfulFlow',
+        short_name: 'Udoom',
         description: 'Transform doomscrolling into bite-sized learning.',
         theme_color: '#020617',
         background_color: '#020617',

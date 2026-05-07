@@ -51,10 +51,10 @@ export default function FeedContainer({
       {/* The Scroll Engine */}
       <div 
         ref={containerRef}
-        className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
       >
         {clips.map((clip) => (
-          <div key={clip.id} id={`feed-item-${clip.id}`} className="snap-start h-screen w-full">
+          <div key={clip.id} id={`feed-item-${clip.id}`} className="snap-start snap-always h-[100dvh] w-full">
             <FeedItem 
               video={video}
               clip={clip}

@@ -211,7 +211,7 @@ def segment_transcript(
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model='gemini-2.5-flash', #'gemma-4-31b-it'. 'gemini-2.5-flash-lite'
+                model='gemma-4-31b-it', #'gemma-4-31b-it'. 'gemini-2.5-flash-lite'
                 contents=transcript_text_payload,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",

@@ -6,7 +6,7 @@ import YouTube from "react-youtube";
  * Handles the logic for playing a specific segment of a video.
  * Loops automatically between start and end times.
  */
-export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted, isPaused }) {
+export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted, isPaused, aspectRatio = "9:16" }) {
   const playerRef = useRef(null);
   const scrollInterval = useRef(null);
 
@@ -118,7 +118,7 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
   }, []);
 
   return (
-    <div className="w-full h-full bg-black overflow-hidden pointer-events-none">
+    <div className="w-full h-full bg-black overflow-hidden pointer-events-none flex items-center justify-center">
       <YouTube
         videoId={videoId}
         opts={opts}
@@ -130,17 +130,39 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
         .youtube-container {
           position: relative;
           width: 100%;
-          height: 100%;
+          ${aspectRatio === '1:1' ? 'aspect-ratio: 1 / 1;' : ''}
+          ${aspectRatio === '16:9' ? 'aspect-ratio: 16 / 9;' : ''}
+          height: ${aspectRatio === '9:16' ? '100%' : 'auto'};
           overflow: hidden;
         }
         .youtube-iframe {
           position: absolute;
           top: 50%;
           left: 50%;
+          transform: translate(-50%, -50%);
+          ${aspectRatio === '9:16' ? `
           width: 100vw;
           height: 100vh;
-          transform: translate(-50%, -50%);
+          ` : aspectRatio === '1:1' ? `
+          width: 177.77%; /* 16/9 ratio to fill square height */
+          height: 100%;
+          ` : `
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          height: auto;
+          `}
         }
+        
+        .youtube-container {
+          position: relative;
+          width: 100%;
+          ${aspectRatio === '1:1' ? 'aspect-ratio: 1 / 1;' : ''}
+          ${aspectRatio === '16:9' ? 'aspect-ratio: 16 / 9;' : ''}
+          height: ${aspectRatio === '9:16' ? '100%' : 'auto'};
+          overflow: hidden;
+        }
+
+        ${aspectRatio === '9:16' ? `
         @media (min-aspect-ratio: 16/9) {
           .youtube-iframe {
             height: 56.25vw;
@@ -151,6 +173,7 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
             width: 177.78vh;
           }
         }
+        ` : ''}
       `}</style>
     </div>
   );
