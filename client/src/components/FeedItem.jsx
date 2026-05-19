@@ -89,12 +89,12 @@ export default function FeedItem({
     if (inView) {
       onInView(clip.id);
       
-      // Industrial Watch Rule: 10 seconds of active view = Watched
+      // Industrial Watch Rule: 20 seconds of active view = Watched
       if (!clip.is_watched) {
         watchTimer = setTimeout(() => {
           console.log(`[FeedItem] Marking clip ${clip.id} as watched...`);
           markClipWatched(clip.id);
-        }, 10000);
+        }, 20000);
       }
     } else {
       // Auto-pause when scrolling away

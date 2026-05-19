@@ -14,11 +14,11 @@ export default function ProcessingPage() {
   const [isFinished, setIsFinished] = useState(false);
   const { videoId, url } = location.state || {};
 
-  // Real-world 3-phase AI pipeline
+  // Simplified Udoom pipeline steps
   const steps = [
-    { label: "Deep Ingestion", status: "success", time: "12s", desc: "Fetching video context & speech data..." },
-    { label: "Neural Distillation", status: "processing", time: "Analyzing...", desc: "Identifying Udoom clips & insights with Gemini..." },
-    { label: "Asset Synthesis", status: "pending", time: "Queued", desc: "Formatting clips for high-impact scrolling..." }
+    { label: "Reading Video", status: "success", time: "12s", desc: "Gathering the transcript and video information..." },
+    { label: "Finding Key Moments", status: "processing", time: "Analyzing...", desc: "Selecting the most valuable, productive insights..." },
+    { label: "Building Your Feed", status: "pending", time: "Queued", desc: "Preparing short, easy-to-read clips for you..." }
   ];
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function ProcessingPage() {
   }, [navigate, videoId, url, updateVideo, deleteVideo]);
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface flex flex-col overflow-x-hidden">
+    <div className="h-screen bg-surface text-on-surface flex flex-col overflow-hidden">
       <header className="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl flex justify-between items-center px-6 py-4">
         <h1 className="text-xl font-bold tracking-tighter text-emerald-400 font-lexend">Udoom</h1>
         <button className="text-slate-400">
@@ -109,32 +109,43 @@ export default function ProcessingPage() {
         </button>
       </header>
 
-      <main className="flex-grow pt-32 pb-32 px-6 flex flex-col items-center max-w-md mx-auto w-full">
+      <main className="flex-grow pt-24 pb-4 md:pt-32 md:pb-32 px-6 flex flex-col items-center max-w-md mx-auto w-full justify-start md:justify-center">
         {/* Status Header */}
-        <div className="w-full mb-12 text-center">
-          <span className="text-[10px] text-primary tracking-[0.2em] font-bold uppercase mb-2 block">System Processing</span>
-          <h2 className="text-3xl font-extrabold tracking-tight text-on-surface">Active Pipeline</h2>
+        <div className="w-full mb-6 md:mb-12 text-center">
+          <span className="text-[10px] text-primary tracking-[0.2em] font-bold uppercase mb-1 block">Detox in Progress</span>
+          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-on-surface">Distilling Video</h2>
         </div>
 
         {/* Central Pulse Indicator */}
-        <div className="relative w-64 h-64 flex items-center justify-center mb-16">
+        <div className="relative w-36 h-36 md:w-64 md:h-64 flex items-center justify-center mb-8 md:mb-16">
           <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
+            animate={{ opacity: [0.2, 0.4, 0.2] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-0 bg-primary/20 rounded-full blur-3xl"
+            className="absolute inset-0 bg-[radial-gradient(circle,rgba(140,239,206,0.2)_0%,transparent_70%)] rounded-full"
+            style={{ willChange: "opacity" }}
           />
 
-          <svg className="w-full h-full transform -rotate-90 relative z-10 transition-all duration-1000">
+          <svg viewBox="0 0 256 256" className="w-full h-full transform -rotate-90 relative z-10 transition-all duration-1000">
             <circle
               className="text-surface-container-highest"
               cx="128" cy="128" r="110"
               fill="transparent" stroke="currentColor" strokeWidth="8"
             />
+            {/* Glow stroke underlay (Replaces dynamic drop-shadow filter) */}
             <motion.circle
               initial={{ strokeDashoffset: 690 }}
               animate={{ strokeDashoffset: isFinished ? 0 : 690 - (690 * 0.65) }}
               transition={{ duration: 10, ease: "linear" }}
-              className="text-primary drop-shadow-[0_0_10px_rgba(140,239,206,0.6)]"
+              className="text-primary/30"
+              cx="128" cy="128" r="110"
+              fill="transparent" stroke="currentColor" strokeWidth="14"
+              strokeDasharray="690" strokeLinecap="round"
+            />
+            <motion.circle
+              initial={{ strokeDashoffset: 690 }}
+              animate={{ strokeDashoffset: isFinished ? 0 : 690 - (690 * 0.65) }}
+              transition={{ duration: 10, ease: "linear" }}
+              className="text-primary"
               cx="128" cy="128" r="110"
               fill="transparent" stroke="currentColor" strokeWidth="8"
               strokeDasharray="690" strokeLinecap="round"
@@ -144,8 +155,8 @@ export default function ProcessingPage() {
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
             <motion.div
               animate={isFinished ? { scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] } : {}}
-              className={`w-24 h-24 rounded-full flex items-center justify-center shadow-2xl border border-white/5 transition-colors duration-500 ${isFinished ? 'bg-primary text-slate-950' : 'bg-surface-container text-primary'}`}>
-              <span className="material-symbols-outlined text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+              className={`w-12 h-12 md:w-24 md:h-24 rounded-full flex items-center justify-center shadow-2xl border border-white/5 transition-colors duration-500 ${isFinished ? 'bg-primary text-slate-950' : 'bg-surface-container text-primary'}`}>
+              <span className="material-symbols-outlined text-2xl md:text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                 {isFinished ? 'check_circle' : 'psychology'}
               </span>
             </motion.div>
@@ -153,23 +164,23 @@ export default function ProcessingPage() {
         </div>
 
         {/* Status Label */}
-        <div className="text-center mb-12 h-20">
-          <h3 className={`text-2xl font-bold mb-2 transition-all ${error ? 'text-red-400' : 'text-primary'}`}>
+        <div className="text-center mb-6 md:mb-12 h-14 md:h-20">
+          <h3 className={`text-xl md:text-2xl font-bold mb-1 transition-all ${error ? 'text-red-400' : 'text-primary'}`}>
             {error ? "Synthesis Failed" : isFinished ? "Success!" : "Detoxifying content..."}
           </h3>
           <p className="text-on-surface-variant text-sm max-w-[260px] mx-auto leading-relaxed opacity-70">
-            {error ? error : isFinished ? "Redirecting to your flow..." : "AI is distilling neural layers for constructive consumption."}
+            {error ? error : isFinished ? "Redirecting to your flow..." : ""}
           </p>
         </div>
 
         {/* Pipeline Steps */}
-        <div className="w-full space-y-4">
+        <div className="w-full space-y-2 md:space-y-4">
           {steps.map((s, idx) => (
             <motion.div
               key={idx}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: step >= idx ? 1 : 0.4, x: 0 }}
-              className={`p-5 rounded-2xl flex items-center justify-between transition-all duration-500 ${step === idx ? "bg-surface-container border border-primary/20 shadow-xl" : "bg-surface-container-low"
+              className={`p-3 md:p-5 rounded-2xl flex items-center justify-between transition-all duration-500 ${step === idx ? "bg-surface-container border border-primary/20 shadow-xl" : "bg-surface-container-low"
                 }`}
             >
               <div className="flex items-center gap-4">

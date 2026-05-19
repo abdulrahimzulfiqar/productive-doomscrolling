@@ -6,7 +6,7 @@ import { extractYoutubeId, getYoutubeThumbnail } from "../utils/videoUtils";
 
 export default function AddVideoPage() {
   const navigate = useNavigate();
-  const { addVideo } = useLibrary();
+  const { addVideo, library } = useLibrary();
   const [showInput, setShowInput] = useState(false);
   const [url, setUrl] = useState("");
   const [aspectRatio, setAspectRatio] = useState(null);
@@ -21,47 +21,32 @@ export default function AddVideoPage() {
         return;
       }
 
-      // 1. FAST METADATA FETCH
-      let meta = {
+      // 1. Synchronous check on the pre-loaded local library
+      const existing = library.find(v => v.id === videoId);
+      if (existing && existing.status === "completed") {
+        navigate("/clips", { state: { video: existing } });
+        return;
+      }
+
+      // 2. Prepare default video structure immediately
+      const newVideo = {
         id: videoId,
         title: "Analyzing Video...",
         duration: "Calculating...",
-        image: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`
-      };
-
-      try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-        const metaRes = await fetch(`${backendUrl}/api/v1/metadata?url=${encodeURIComponent(url.trim())}`);
-        if (metaRes.ok) {
-           const metaData = await metaRes.json();
-           meta = {
-             id: metaData.id,
-             title: metaData.title,
-             duration: metaData.duration,
-             image: metaData.thumbnail
-           };
-        }
-      } catch (err) {
-        console.warn("Fast metadata fetch failed, using defaults:", err);
-      }
-
-      const newVideo = {
-        ...meta,
+        image: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
         url: url.trim(),
         aspectRatio: aspectRatio,
         status: "processing",
-        clips: [] 
+        clips: []
       };
-      
-      const { video, isNew } = await addVideo(newVideo);
 
-      // If video exists and is already completed, go to it.
-      // Otherwise, go to processing to sync/wait.
-      if (!isNew && video.status === "completed") {
-        navigate("/clips", { state: { video } });
-      } else {
-        navigate("/processing", { state: { videoId: video.id, url: video.url } });
-      }
+      // 3. Instantly navigate to processing page so user sees action
+      navigate("/processing", { state: { videoId, url: url.trim() } });
+
+      // 4. Trigger database insert in the background asynchronously
+      addVideo(newVideo).catch(err => {
+        console.error("Failed to add video in background:", err);
+      });
     }
   };
 
@@ -75,18 +60,18 @@ export default function AddVideoPage() {
         </button>
       </header>
 
-      <main className="pt-24 px-6 max-w-md mx-auto space-y-12">
+      <main className="pt-20 md:pt-24 px-6 max-w-md mx-auto space-y-6 md:space-y-12">
         {/* Hero Section */}
-        <section className="relative group">
-          <div className="overflow-hidden rounded-3xl h-[340px] w-full relative">
+        <section className={`relative group transition-all duration-300 ${showInput ? "hidden md:block" : "block"}`}>
+          <div className="overflow-hidden rounded-3xl w-64 h-64 md:w-full md:h-[340px] mx-auto relative">
             <img 
               alt="Serene Setting" 
               className="w-full h-full object-cover grayscale-[0.2] brightness-50 group-hover:scale-105 transition-transform duration-700" 
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuAm3uLayL12LuyUgsF71MgaUZymwbdkjAudUw-MRyvdiCnC1l9feWymCqMvCxTPAa9Ow_53y_kHWTeO2umOUuvLVqoWbo3xZsPluaBamdvGgbBxT3TAMQTGHD69kOg0Y6oFBH0Ulx4FN42R74KjuaYYs-8KNPqWyHHTsXaNQ824O2bY0iMshS6Aw4KOg31cAA1XrjCOOo1ZVhrumnRzCxVl1mk-5ttmh_ef7bQlBI13KSFxvpDBnWAzdfedTrA0rQ6xCCEV8t3Hars"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
-            <div className="absolute bottom-10 left-0 w-full px-6 text-center">
-              <h2 className="text-[3rem] leading-[1.1] font-extrabold tracking-tight text-on-surface">
+            <div className="absolute bottom-6 md:bottom-10 left-0 w-full px-6 text-center">
+              <h2 className="text-3xl md:text-[3rem] leading-[1.1] font-extrabold tracking-tight text-on-surface">
                 Ready to <span className="text-primary italic">detox?</span>
               </h2>
             </div>
@@ -103,7 +88,7 @@ export default function AddVideoPage() {
                 exit={{ opacity: 0, y: -20 }}
                 className="grid grid-cols-1 gap-6"
               >
-                <div className="bg-surface-container-low p-8 rounded-[2.5rem] flex items-center justify-between group cursor-pointer active:scale-[0.98] transition-all duration-300 border border-white/5">
+                <div className="bg-surface-container-low p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-between group cursor-pointer active:scale-[0.98] transition-all duration-300 border border-white/5">
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-3xl bg-surface-container-highest flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-slate-950 transition-colors">
                       <span className="material-symbols-outlined !text-3xl">upload_file</span>
@@ -118,7 +103,7 @@ export default function AddVideoPage() {
 
                 <div 
                   onClick={() => setShowInput(true)}
-                  className="bg-surface-container-low p-8 rounded-[2.5rem] flex items-center justify-between group cursor-pointer active:scale-[0.98] transition-all duration-300 border border-white/5"
+                  className="bg-surface-container-low p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-between group cursor-pointer active:scale-[0.98] transition-all duration-300 border border-white/5"
                 >
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-3xl bg-surface-container-highest flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-slate-950 transition-colors">
@@ -138,9 +123,9 @@ export default function AddVideoPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-surface-container-low p-8 rounded-[2.5rem] border border-primary/20 shadow-2xl shadow-primary/5"
+                className="bg-surface-container-low p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-primary/20 shadow-2xl shadow-primary/5"
               >
-                <div className="flex justify-between items-center mb-6 px-2">
+                <div className="flex justify-between items-center mb-4 md:mb-6 px-2">
                   <h3 className="text-xl font-bold text-on-surface">Paste YouTube Link</h3>
                   <button onClick={() => setShowInput(false)} className="text-slate-500 hover:text-white transition-colors">
                     <span className="material-symbols-outlined">close</span>
