@@ -138,6 +138,12 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
 
     # 2. Setup requests Session to support cookies in 1.2.4
     session = requests.Session()
+    if proxy_url:
+        session.proxies.update({
+            "http": proxy_url,
+            "https": proxy_url,
+        })
+        
     if cookies_path:
         try:
             cookie_jar = http.cookiejar.MozillaCookieJar(cookies_path)
