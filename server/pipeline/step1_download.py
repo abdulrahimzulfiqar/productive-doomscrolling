@@ -121,16 +121,21 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
     if os.path.exists(cookie_file):
         cookies_path = cookie_file
 
+    proxy_url = os.environ.get("WEBSHARE_PROXY_URL")
+    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+
     try:
         print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
+        if proxy_url:
+            print("   🔒 Routing transcript request through Webshare Residential Proxy...")
         
         # Total fallback strategy for library method names
         try:
             # Modern/Official method
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies_path)
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies, cookies=cookies_path)
         except (AttributeError, TypeError):
             try:
-                # Alternate method name
+                # Alternate method name (Legacy API doesn't support proxies kwarg)
                 transcript_list = YouTubeTranscriptApi.list(video_id)
             except (AttributeError, TypeError):
                 # Another common variant
@@ -214,6 +219,8 @@ def download_video(url: str) -> Dict[str, Any]:
         print(f"   🍪 Using Cookie Session (VIP Authentication) for {url}...")
         cookies_path = cookie_file
 
+    proxy_url = os.environ.get("WEBSHARE_PROXY_URL")
+
     # --- YouTube API / Metadata Extraction ---
     video_id = extract_youtube_id(url)
     api_metadata = get_youtube_metadata_api(video_id) if video_id else None
@@ -226,6 +233,7 @@ def download_video(url: str) -> Dict[str, Any]:
         print(f"\n📡 Falling back to scraping metadata: {url}")
         # We only want metadata now!
         ydl_opts_info = {
+            "proxy": proxy_url,
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
@@ -262,25 +270,29 @@ def download_video(url: str) -> Dict[str, Any]:
     
     # --- Whisper Fallback (Audio Download) ---
     if not transcript_path:
-        print("\n🔈 Triggering Audio-Only Download Fallback for Whisper...")
-        ydl_opts_download = {
-            "outtmpl": os.path.join(TEMP_DIR, "%(id)s.%(ext)s"), # Use ID for cleaner tracking
-            "format": "bestaudio[ext=m4a]/bestaudio/best",
-            "restrictfilenames": True,
-            "quiet": False,
-            "cookiefile": cookies_path if cookies_path else None,
-            "extractor_args": {
-                "youtube": {
-                    # Use tv and mweb to get audio when web/ios is failing
-                    "player_client": ["tv", "mweb"] if cookies_path else ["web_creator", "android", "ios"],
-                    "skip": ["dash", "hls"]
-                }
-            },
-        }
-        with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-            dl_info = ydl.extract_info(url, download=True)
-            downloaded_filepath = os.path.abspath(ydl.prepare_filename(dl_info))
-            print(f"✅ Audio downloaded to: {downloaded_filepath}")
+        # User requested to disable Whisper fallback to save Webshare proxy bandwidth (80MB per video)
+        print("\n🔈 No native transcript found. Whisper audio fallback is currently disabled to save bandwidth.")
+        raise ValueError("No transcript available for this video.")
+        
+        # ydl_opts_download = {
+        #     "proxy": proxy_url,
+        #     "outtmpl": os.path.join(TEMP_DIR, "%(id)s.%(ext)s"), # Use ID for cleaner tracking
+        #     "format": "bestaudio[ext=m4a]/bestaudio/best",
+        #     "restrictfilenames": True,
+        #     "quiet": False,
+        #     "cookiefile": cookies_path if cookies_path else None,
+        #     "extractor_args": {
+        #         "youtube": {
+        #             # Use tv and mweb to get audio when web/ios is failing
+        #             "player_client": ["tv", "mweb"] if cookies_path else ["web_creator", "android", "ios"],
+        #             "skip": ["dash", "hls"]
+        #         }
+        #     },
+        # }
+        # with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
+        #     dl_info = ydl.extract_info(url, download=True)
+        #     downloaded_filepath = os.path.abspath(ydl.prepare_filename(dl_info))
+        #     print(f"✅ Audio downloaded to: {downloaded_filepath}")
 
 
     return {

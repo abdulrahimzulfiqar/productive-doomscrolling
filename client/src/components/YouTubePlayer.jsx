@@ -6,7 +6,7 @@ import YouTube from "react-youtube";
  * Handles the logic for playing a specific segment of a video.
  * Loops automatically between start and end times.
  */
-export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted, isPaused, aspectRatio = "9:16" }) {
+export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted, isPaused, aspectRatio = "9:16", playbackRate = 1 }) {
   const playerRef = useRef(null);
   const scrollInterval = useRef(null);
 
@@ -37,6 +37,17 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
     }
   }, [isMuted]);
 
+  // Sync playback rate when prop changes
+  useEffect(() => {
+    if (playerRef.current && typeof playerRef.current.setPlaybackRate === 'function') {
+      try {
+        playerRef.current.setPlaybackRate(playbackRate);
+      } catch (e) {
+        console.warn("YouTube Player playback rate sync deferred:", e);
+      }
+    }
+  }, [playbackRate]);
+
   const opts = {
     height: "100%",
     width: "100%",
@@ -60,6 +71,15 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
       playerRef.current.mute();
     } else {
       playerRef.current.unMute();
+    }
+
+    // Apply initial playback rate
+    try {
+      if (typeof playerRef.current.setPlaybackRate === 'function') {
+        playerRef.current.setPlaybackRate(playbackRate);
+      }
+    } catch (e) {
+      console.warn("YouTube Player initial playback rate set deferred:", e);
     }
 
     // Aggressively try to turn off Captions via the Player API
