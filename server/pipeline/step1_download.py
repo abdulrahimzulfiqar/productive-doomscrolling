@@ -9,6 +9,9 @@ from typing import Dict, Any, Optional
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 from youtube_transcript_api.proxies import WebshareProxyConfig
+from urllib.parse import urlparse
+import requests
+import http.cookiejar
 
 # --- Directory Setup ---
 import tempfile
@@ -122,73 +125,78 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
         cookies_path = cookie_file
 
     proxy_url = os.environ.get("WEBSHARE_PROXY_URL")
-    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-
-    print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
+    
+    # 1. Parse proxy credentials from Webshare string if available
+    proxy_config = None
     if proxy_url:
-        print("   🔒 Routing transcript request through Webshare Residential Proxy...")
+        parsed = urlparse(proxy_url)
+        # Assuming format like http://username:password@p.webshare.io:80
+        if parsed.username and parsed.password:
+            # We use the built-in WebshareProxyConfig which handles rotation and drops keep-alives!
+            # It also natively defaults to 10 retries on blocks!
+            proxy_config = WebshareProxyConfig(parsed.username, parsed.password)
 
-    max_retries = 3
-    for attempt in range(max_retries):
+    # 2. Setup requests Session to support cookies in 1.2.4
+    session = requests.Session()
+    if cookies_path:
         try:
-            # Total fallback strategy for library method names
-            try:
-                # Modern/Official method
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies, cookies=cookies_path)
-            except (AttributeError, TypeError):
-                try:
-                    # Alternate method name (Legacy API doesn't support proxies kwarg)
-                    transcript_list = YouTubeTranscriptApi.list(video_id)
-                except (AttributeError, TypeError):
-                    # Another common variant
-                    transcript_list = YouTubeTranscriptApi().list(video_id)
-            
-            # 1. Try to find Manual English (Best) or Generated English (Okay)
-            try:
-                transcript = transcript_list.find_transcript(['en'])
-                print("   ✅ Found English transcript (Native/Auto).")
-            except Exception:
-                # 2. Global Fallback: Find ANY first available transcript
-                print("   ⚠️ English transcript not found. Searching for alt languages...")
-                available = list(transcript_list)
-                if not available:
-                    raise ValueError("No transcripts available.")
-                
-                transcript = available[0]
-                print(f"   🌐 Falling back to {transcript.language} ({transcript.language_code}) transcript.")
-                
-            raw_data = transcript.fetch()
-            
-            # Convert to Whisper-style format
-            whisper_format = []
-            for segment in raw_data:
-                whisper_format.append({
-                    "start": segment.start,
-                    "end": segment.start + segment.duration,
-                    "text": segment.text
-                })
-                
-            out_path = os.path.join(TEMP_DIR, f"{video_id}_transcript.json")
-            with open(out_path, 'w', encoding='utf-8') as f:
-                json.dump(whisper_format, f, indent=2, ensure_ascii=False)
-                
-            print(f"   💾 Saved instantly to {out_path}")
-            return out_path
-            
-        except (TranscriptsDisabled, NoTranscriptFound) as e:
-            print(f"   ❌ Native captions unavailable: {e}")
-            return None
+            cookie_jar = http.cookiejar.MozillaCookieJar(cookies_path)
+            cookie_jar.load(ignore_discard=True, ignore_expires=True)
+            session.cookies.update(cookie_jar)
         except Exception as e:
-            error_msg = str(e)
-            if "blocking requests from your IP" in error_msg and attempt < max_retries - 1:
-                print(f"   ⚠️ Proxy IP was flagged by YouTube. Rotating to a fresh IP and retrying (Attempt {attempt+2}/{max_retries})...")
-                import time
-                time.sleep(1)
-                continue
-            print(f"   ❌ Native captions unavailable: \n{error_msg}")
-            return None
+            print(f"   ⚠️ Could not load cookies from {cookies_path}: {e}")
+
+    # 3. Instantiate the Official API object properly
+    if proxy_config:
+        print(f"\n📝 Attempting to fetch native YouTube captions for {video_id}...")
+        print("   🔒 Routing transcript request through Native Webshare Proxy Config (Handles Rotations automatically)...")
+        ytt_api = YouTubeTranscriptApi(proxy_config=proxy_config, http_client=session)
+    else:
+        print(f"\n📝 Attempting to fetch native YouTube captions for {video_id} (Directly)...")
+        ytt_api = YouTubeTranscriptApi(http_client=session)
+
+    try:
+        # We no longer need a custom retry loop; WebshareProxyConfig handles it internally!
+        transcript_list = ytt_api.list(video_id)
+        
+        # 1. Try to find Manual English (Best) or Generated English (Okay)
+        try:
+            transcript = transcript_list.find_transcript(['en'])
+            print("   ✅ Found English transcript (Native/Auto).")
+        except Exception:
+            # 2. Global Fallback: Find ANY first available transcript
+            print("   ⚠️ English transcript not found. Searching for alt languages...")
+            available = list(transcript_list)
+            if not available:
+                raise ValueError("No transcripts available.")
             
-    return None
+            transcript = available[0]
+            print(f"   🌐 Falling back to {transcript.language} ({transcript.language_code}) transcript.")
+            
+        raw_data = transcript.fetch()
+        
+        # Convert to Whisper-style format
+        whisper_format = []
+        for segment in raw_data:
+            whisper_format.append({
+                "start": segment.start,
+                "end": segment.start + segment.duration,
+                "text": segment.text
+            })
+            
+        out_path = os.path.join(TEMP_DIR, f"{video_id}_transcript.json")
+        with open(out_path, 'w', encoding='utf-8') as f:
+            json.dump(whisper_format, f, indent=2, ensure_ascii=False)
+            
+        print(f"   💾 Saved instantly to {out_path}")
+        return out_path
+        
+    except (TranscriptsDisabled, NoTranscriptFound) as e:
+        print(f"   ❌ Native captions unavailable: {e}")
+        return None
+    except Exception as e:
+        print(f"   ❌ Native captions unavailable: \n{e}")
+        return None
 
 def download_video(url: str) -> Dict[str, Any]:
     """
