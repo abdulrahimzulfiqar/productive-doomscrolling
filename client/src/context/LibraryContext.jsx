@@ -1,12 +1,14 @@
 import React, { createContext, useState, useCallback, useEffect } from "react";
 import { supabase } from "../supabaseClient";
+import { useAuth } from "./AuthContext";
 
 export const LibraryContext = createContext(null);
 
 export const LibraryProvider = ({ children }) => {
+  const { user } = useAuth();
   const [library, setLibrary] = useState([]);
 
-  // Load library from Supabase
+  // Load library from Supabase (RLS enforces user_id filtering automatically)
   const fetchLibrary = useCallback(async () => {
     const { data, error } = await supabase
       .from("videos")
@@ -32,9 +34,14 @@ export const LibraryProvider = ({ children }) => {
     }
   }, []);
 
+  // Re-fetch library when user changes (login/logout)
   useEffect(() => {
-    fetchLibrary();
-  }, [fetchLibrary]);
+    if (user) {
+      fetchLibrary();
+    } else {
+      setLibrary([]);
+    }
+  }, [user, fetchLibrary]);
 
   /**
    * Adds a new video to the library.
