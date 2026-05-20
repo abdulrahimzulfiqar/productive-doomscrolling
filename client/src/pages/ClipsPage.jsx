@@ -6,10 +6,11 @@ import { useLibrary } from "../hooks/useLibrary";
 export default function ClipsPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { fetchVideoDetail } = useLibrary();
+  const { library, fetchVideoDetail } = useLibrary();
   
-  // Use local state initialized from route state
-  const [video, setVideo] = React.useState(location.state?.video || null);
+  // Resolve the video dynamically from global context to react to changes (like clips watched)
+  const initialVideo = location.state?.video || null;
+  const video = library.find(v => v.id === initialVideo?.id) || initialVideo;
   
   // We need to fetch details if we have no clips OR if the clips are 'lightweight' (only have an id, no title)
   const needsFullData = !video?.clips || video.clips.length === 0 || (video.clips.length > 0 && !video.clips[0].title);
@@ -17,16 +18,15 @@ export default function ClipsPage() {
   const [isLoading, setIsLoading] = React.useState(needsFullData);
 
   React.useEffect(() => {
-    if (video && needsFullData) {
+    if (video?.id && needsFullData) {
       setIsLoading(true);
-      fetchVideoDetail(video.id).then(fullVideo => {
-        if (fullVideo) setVideo(fullVideo);
+      fetchVideoDetail(video.id).then(() => {
         setIsLoading(false);
       });
     } else {
       setIsLoading(false);
     }
-  }, [video?.id, fetchVideoDetail]);
+  }, [video?.id, fetchVideoDetail, needsFullData]);
 
   if (!video) return null;
 
