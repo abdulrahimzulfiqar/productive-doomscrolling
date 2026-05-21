@@ -214,6 +214,14 @@ export const LibraryProvider = ({ children }) => {
 
   const deleteVideo = useCallback(async (id) => {
     if (!user) return;
+
+    // Fetch video status to check if it completed successfully
+    const { data: videoData } = await supabase
+      .from("videos")
+      .select("status")
+      .eq("id", id)
+      .maybeSingle();
+
     const { error } = await supabase
       .from("user_library")
       .delete()
@@ -222,6 +230,16 @@ export const LibraryProvider = ({ children }) => {
       
     if (!error) {
       setLibrary(prev => prev.filter(v => v.id !== id));
+      
+      // If the video was never completed successfully (e.g. failed during ingestion/processing),
+      // clean it up from the global videos table so retries can process it fresh.
+      if (videoData && videoData.status !== "completed") {
+        console.log(`[LibraryContext] Cleaning up incomplete/failed video ID ${id} from shared pool.`);
+        await supabase
+          .from("videos")
+          .delete()
+          .eq("id", id);
+      }
     } else {
       console.error("Error deleting video from user library:", error);
     }

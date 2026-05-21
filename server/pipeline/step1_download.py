@@ -161,48 +161,59 @@ def get_native_transcript(video_id: str, video_title: str) -> bool:
         print(f"\n📝 Attempting to fetch native YouTube captions for {video_id} (Directly)...")
         ytt_api = YouTubeTranscriptApi(http_client=session)
 
-    try:
-        # We no longer need a custom retry loop; WebshareProxyConfig handles it internally!
-        transcript_list = ytt_api.list(video_id)
-        
-        # 1. Try to find Manual English (Best) or Generated English (Okay)
+    import time
+    max_attempts = 4
+    for attempt in range(1, max_attempts + 1):
         try:
-            transcript = transcript_list.find_transcript(['en'])
-            print("   ✅ Found English transcript (Native/Auto).")
-        except Exception:
-            # 2. Global Fallback: Find ANY first available transcript
-            print("   ⚠️ English transcript not found. Searching for alt languages...")
-            available = list(transcript_list)
-            if not available:
-                raise ValueError("No transcripts available.")
+            if attempt > 1:
+                print(f"   🔄 [Attempt {attempt}/{max_attempts}] Retrying caption fetch after error...")
+            else:
+                print(f"   [Attempt {attempt}/{max_attempts}] Fetching transcript list...")
             
-            transcript = available[0]
-            print(f"   🌐 Falling back to {transcript.language} ({transcript.language_code}) transcript.")
+            transcript_list = ytt_api.list(video_id)
             
-        raw_data = transcript.fetch()
-        
-        # Convert to Whisper-style format
-        whisper_format = []
-        for segment in raw_data:
-            whisper_format.append({
-                "start": segment.start,
-                "end": segment.start + segment.duration,
-                "text": segment.text
-            })
+            # 1. Try to find Manual English (Best) or Generated English (Okay)
+            try:
+                transcript = transcript_list.find_transcript(['en'])
+                print("   ✅ Found English transcript (Native/Auto).")
+            except Exception:
+                # 2. Global Fallback: Find ANY first available transcript
+                print("   ⚠️ English transcript not found. Searching for alt languages...")
+                available = list(transcript_list)
+                if not available:
+                    raise ValueError("No transcripts available.")
+                
+                transcript = available[0]
+                print(f"   🌐 Falling back to {transcript.language} ({transcript.language_code}) transcript.")
+                
+            raw_data = transcript.fetch()
             
-        out_path = os.path.join(TEMP_DIR, f"{video_id}_transcript.json")
-        with open(out_path, 'w', encoding='utf-8') as f:
-            json.dump(whisper_format, f, indent=2, ensure_ascii=False)
-            
-        print(f"   💾 Saved instantly to {out_path}")
-        return out_path
-        
-    except (TranscriptsDisabled, NoTranscriptFound) as e:
-        print(f"   ❌ Native captions unavailable: {e}")
-        return None
-    except Exception as e:
-        print(f"   ❌ Native captions unavailable: \n{e}")
-        return None
+            # Convert to Whisper-style format
+            whisper_format = []
+            for segment in raw_data:
+                whisper_format.append({
+                    "start": segment.start,
+                    "end": segment.start + segment.duration,
+                    "text": segment.text
+                })
+                
+            out_path = os.path.join(TEMP_DIR, f"{video_id}_transcript.json")
+            with open(out_path, 'w', encoding='utf-8') as f:
+                json.dump(whisper_format, f, indent=2, ensure_ascii=False)
+                
+            print(f"   💾 Saved instantly to {out_path}")
+            return out_path
+
+        except (TranscriptsDisabled, NoTranscriptFound) as e:
+            print(f"   ❌ Native captions unavailable (terminal error): {e}")
+            return None
+        except Exception as e:
+            print(f"   ⚠️ Attempt {attempt} failed: {e}")
+            if attempt < max_attempts:
+                time.sleep(1)
+            else:
+                print("   ❌ Max transcript fetch attempts reached.")
+                return None
 
 def download_video(url: str) -> Dict[str, Any]:
     """
