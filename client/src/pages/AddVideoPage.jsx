@@ -10,6 +10,7 @@ export default function AddVideoPage() {
   const [showInput, setShowInput] = useState(false);
   const [url, setUrl] = useState("");
   const [aspectRatio, setAspectRatio] = useState(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   const handleProcess = async (e) => {
     e.preventDefault();
@@ -28,7 +29,9 @@ export default function AddVideoPage() {
         return;
       }
 
-      // 2. Prepare default video structure immediately
+      setIsChecking(true);
+
+      // 2. Prepare default video structure
       const newVideo = {
         id: videoId,
         title: "Analyzing Video...",
@@ -40,13 +43,21 @@ export default function AddVideoPage() {
         clips: []
       };
 
-      // 3. Instantly navigate to processing page so user sees action
-      navigate("/processing", { state: { videoId, url: url.trim() } });
-
-      // 4. Trigger database insert in the background asynchronously
-      addVideo(newVideo).catch(err => {
-        console.error("Failed to add video in background:", err);
-      });
+      try {
+        // 3. Await database check and addition (cross-account cache check)
+        const res = await addVideo(newVideo);
+        if (res && !res.isNew) {
+          // Cross-account cached! Redirect directly to clips page
+          navigate("/clips", { state: { video: res.video } });
+        } else {
+          // Brand new video -> redirect to processing page to run backend pipeline
+          navigate("/processing", { state: { videoId, url: url.trim() } });
+        }
+      } catch (err) {
+        console.error("Failed to add video:", err);
+        alert("An error occurred adding the video: " + err.message);
+        setIsChecking(false);
+      }
     }
   };
 
@@ -170,18 +181,27 @@ export default function AddVideoPage() {
                   {/* Action Button Section - specifically for the link input */}
                   <div className="pt-4">
                     <motion.button 
-                      disabled={!url.trim() || !aspectRatio}
+                      disabled={!url.trim() || !aspectRatio || isChecking}
                       onClick={handleProcess}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ 
-                        opacity: (url.trim() && aspectRatio) ? 1 : 0.4,
+                        opacity: (url.trim() && aspectRatio && !isChecking) ? 1 : 0.4,
                         y: 0,
-                        scale: (url.trim() && aspectRatio) ? 1 : 0.98
+                        scale: (url.trim() && aspectRatio && !isChecking) ? 1 : 0.98
                       }}
                       className="w-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-emerald-600 text-slate-950 py-5 rounded-full font-bold shadow-[0_0_25px_rgba(62,180,137,0.3)] hover:shadow-[0_0_35px_rgba(62,180,137,0.5)] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:cursor-not-allowed disabled:hover:shadow-none"
                     >
-                      <span className="text-lg">Let's Go</span>
-                      <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                      {isChecking ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-lg">Checking Cache...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-lg">Let's Go</span>
+                          <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </>
+                      )}
                     </motion.button>
                   </div>
                 </div>
