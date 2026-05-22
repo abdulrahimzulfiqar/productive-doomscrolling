@@ -16,6 +16,7 @@ export const LibraryProvider = ({ children }) => {
       .select(`
         video_id,
         created_at,
+        in_explore,
         videos (
           id,
           url,
@@ -33,7 +34,8 @@ export const LibraryProvider = ({ children }) => {
             summary,
             user_clip_interactions (
               is_watched,
-              user_notes
+              user_notes,
+              watch_percent
             )
           )
         )
@@ -49,6 +51,7 @@ export const LibraryProvider = ({ children }) => {
         return {
           ...video,
           aspectRatio: video.aspect_ratio,
+          in_explore: item.in_explore ?? false,
           // Keep the user_library created_at so sorting remains correct by when user added it
           created_at: item.created_at, 
           clips: video.clips?.map(clip => {
@@ -59,7 +62,8 @@ export const LibraryProvider = ({ children }) => {
               start: clip.start_time ?? clip.start,
               end: clip.end_time ?? clip.end,
               is_watched: interaction.is_watched ?? false,
-              user_notes: interaction.user_notes ?? ""
+              user_notes: interaction.user_notes ?? "",
+              watch_percent: interaction.watch_percent ?? 0
             };
           }).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
         };
@@ -124,7 +128,8 @@ export const LibraryProvider = ({ children }) => {
             start: clip.start_time ?? clip.start,
             end: clip.end_time ?? clip.end,
             is_watched: inter.is_watched ?? false,
-            user_notes: inter.user_notes ?? ""
+            user_notes: inter.user_notes ?? "",
+            watch_percent: inter.watch_percent ?? 0
           };
         }).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       };
@@ -298,6 +303,53 @@ export const LibraryProvider = ({ children }) => {
   }, [user]);
 
   /**
+   * Persists the peak watch progress (0-100) for a clip.
+   * Only call with a value higher than the previous to avoid regression.
+   */
+  const updateClipWatchPercent = useCallback(async (clipId, percent) => {
+    if (!user || percent <= 0) return;
+    const rounded = Math.round(percent);
+    const { error } = await supabase
+      .from("user_clip_interactions")
+      .upsert({
+        user_id: user.id,
+        clip_id: clipId,
+        watch_percent: rounded
+      }, { onConflict: "user_id,clip_id" });
+
+    if (!error) {
+      setLibrary(prev => prev.map(video => ({
+        ...video,
+        clips: video.clips?.map(clip => 
+          clip.id === clipId ? { ...clip, watch_percent: rounded } : clip
+        ) || []
+      })));
+    } else {
+      console.error("Error updating watch percent:", error);
+    }
+  }, [user]);
+
+  /**
+   * Toggles whether a video is included in the Explore feed.
+   */
+  const toggleVideoExplore = useCallback(async (videoId, inExplore) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("user_library")
+      .update({ in_explore: inExplore })
+      .eq("video_id", videoId)
+      .eq("user_id", user.id);
+
+    if (!error) {
+      setLibrary(prev => prev.map(video =>
+        video.id === videoId ? { ...video, in_explore: inExplore } : video
+      ));
+    } else {
+      console.error("Error toggling explore:", error);
+    }
+  }, [user]);
+
+  /**
    * Fetches full video data including clips for a single video.
    */
   const fetchVideoDetail = useCallback(async (videoId) => {
@@ -309,7 +361,8 @@ export const LibraryProvider = ({ children }) => {
           *,
           user_clip_interactions (
             is_watched,
-            user_notes
+            user_notes,
+            watch_percent
           )
         )
       `)
@@ -327,7 +380,8 @@ export const LibraryProvider = ({ children }) => {
             start: clip.start_time ?? clip.start,
             end: clip.end_time ?? clip.end,
             is_watched: interaction.is_watched ?? false,
-            user_notes: interaction.user_notes ?? ""
+            user_notes: interaction.user_notes ?? "",
+            watch_percent: interaction.watch_percent ?? 0
           };
         }).sort((a, b) => (a.start_time ?? a.start) - (b.start_time ?? b.start)) || []
       };
@@ -351,7 +405,9 @@ export const LibraryProvider = ({ children }) => {
     fetchLibrary,
     fetchVideoDetail,
     markClipWatched,
-    saveClipNote
+    saveClipNote,
+    updateClipWatchPercent,
+    toggleVideoExplore
   };
 
   return (

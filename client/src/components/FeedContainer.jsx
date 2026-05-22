@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import FeedItem from "./FeedItem";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -10,8 +11,11 @@ export default function FeedContainer({
   video, 
   clips, 
   startClipId, 
-  onClose 
+  onClose,
+  exploreMode = false,
+  onActiveClipChange
 }) {
+  const navigate = useNavigate();
   const [activeClipId, setActiveClipId] = useState(startClipId || (clips[0]?.id));
   const [isMuted, setIsMuted] = useState(true);
   const containerRef = useRef(null);
@@ -30,18 +34,37 @@ export default function FeedContainer({
     <div className="fixed inset-0 bg-black z-[100] h-[100dvh] w-full flex flex-col overflow-hidden">
       
       {/* Top Floating Controls */}
-      <div className="absolute top-0 w-full z-50 p-6 flex justify-between items-start pointer-events-none">
-        <button 
-          onClick={onClose}
-          className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center pointer-events-auto active:scale-90 transition-transform"
-        >
-          <span className="material-symbols-outlined text-white">close</span>
-        </button>
+      <div className="absolute top-0 w-full z-50 p-6 flex justify-between items-center pointer-events-none">
+        <div className="flex items-center gap-3 pointer-events-auto">
+          <button 
+            onClick={onClose}
+            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center opacity-60 hover:opacity-100 active:scale-90 transition-all"
+          >
+            <span className="material-symbols-outlined text-white">close</span>
+          </button>
+ 
+          {exploreMode && (
+            <button
+              onClick={() => navigate("/explore/select")}
+              className="h-12 px-6 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center gap-2 text-white text-xs font-black uppercase tracking-widest opacity-60 hover:opacity-100 active:scale-90 transition-all duration-200"
+            >
+              <span className="material-symbols-outlined !text-sm">tune</span>
+              Select
+            </button>
+          )}
+        </div>
         
+        {/* Center: Clip Counter */}
+        <div className="flex items-center">
+          <span className="text-emerald-400 text-[10px] font-mono font-bold tracking-widest">
+            {clips.findIndex(c => c.id === activeClipId) + 1} / {clips.length}
+          </span>
+        </div>
+ 
         <div className="text-right pointer-events-auto">
           <button 
             onClick={() => setIsMuted(!isMuted)}
-            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center active:scale-90 transition-transform"
+            className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center opacity-60 hover:opacity-100 active:scale-90 transition-all"
           >
             <span className="material-symbols-outlined text-white">{isMuted ? "volume_off" : "volume_up"}</span>
           </button>
@@ -54,13 +77,24 @@ export default function FeedContainer({
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
       >
         {clips.map((clip) => (
-          <div key={clip.id} id={`feed-item-${clip.id}`} className="snap-start snap-always h-[100dvh] w-full">
+          <div 
+            key={clip.id} 
+            id={`feed-item-${clip.id}`} 
+            className="snap-start snap-always h-[100dvh] w-full"
+            style={{ contentVisibility: 'auto', containIntrinsicSize: '100dvh' }}
+          >
             <FeedItem 
-              video={video}
+              video={clip.parentVideo || video}
               clip={clip}
               isActive={activeClipId === clip.id}
               isMuted={isMuted}
-              onInView={(id) => setActiveClipId(id)}
+              showGoToVideo={exploreMode}
+              onInView={(id) => {
+                setActiveClipId(id);
+                if (onActiveClipChange) {
+                  onActiveClipChange(id);
+                }
+              }}
             />
           </div>
         ))}

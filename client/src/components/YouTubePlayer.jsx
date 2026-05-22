@@ -10,6 +10,10 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
   const playerRef = useRef(null);
   const scrollInterval = useRef(null);
 
+  // Sync latest props into a ref to avoid stale closures in onPlayerReady without triggering re-renders
+  const latestProps = useRef({ isMuted, isPaused, playbackRate });
+  latestProps.current = { isMuted, isPaused, playbackRate };
+
   // Sync play/pause state
   useEffect(() => {
     if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
@@ -23,7 +27,6 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
 
   // Sync mute state when prop changes
   useEffect(() => {
-    // Defensive Check: Ensure the player exists AND has the volume methods
     if (playerRef.current && typeof playerRef.current.mute === 'function') {
       try {
         if (isMuted) {
@@ -48,7 +51,7 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
     }
   }, [playbackRate]);
 
-  const opts = {
+  const opts = React.useMemo(() => ({
     height: "100%",
     width: "100%",
     playerVars: {
@@ -61,22 +64,21 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
       cc_load_policy: 0, // Forces captions OFF
       start: Math.floor(start),
     },
-  };
+  }), [start]);
 
   const onPlayerReady = (event) => {
     playerRef.current = event.target;
 
-    // Initial mute state
-    if (isMuted) {
+    // Apply the most up-to-date props (solves the 2x speed race condition)
+    if (latestProps.current.isMuted) {
       playerRef.current.mute();
     } else {
       playerRef.current.unMute();
     }
 
-    // Apply initial playback rate
     try {
       if (typeof playerRef.current.setPlaybackRate === 'function') {
-        playerRef.current.setPlaybackRate(playbackRate);
+        playerRef.current.setPlaybackRate(latestProps.current.playbackRate);
       }
     } catch (e) {
       console.warn("YouTube Player initial playback rate set deferred:", e);
@@ -171,15 +173,6 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
           aspect-ratio: 16 / 9;
           height: auto;
           `}
-        }
-        
-        .youtube-container {
-          position: relative;
-          width: 100%;
-          ${aspectRatio === '1:1' ? 'aspect-ratio: 1 / 1;' : ''}
-          ${aspectRatio === '16:9' ? 'aspect-ratio: 16 / 9;' : ''}
-          height: ${aspectRatio === '9:16' ? '100%' : 'auto'};
-          overflow: hidden;
         }
 
         ${aspectRatio === '9:16' ? `

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useInView } from "react-intersection-observer";
+import { useNavigate } from "react-router-dom";
 import YouTubePlayer from "./YouTubePlayer";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "../hooks/useLibrary";
@@ -16,14 +17,20 @@ export default function FeedItem({
   clip, 
   isActive, 
   isMuted, 
-  onInView 
+  onInView,
+  showGoToVideo = false
 }) {
-  const { markClipWatched, saveClipNote } = useLibrary();
+  const navigate = useNavigate();
+  const { markClipWatched, saveClipNote, updateClipWatchPercent } = useLibrary();
   const [isPaused, setIsPaused] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState(clip.user_notes || "");
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Peak progress tracking for watch_percent persistence
+  const maxProgressRef = React.useRef(clip.watch_percent || 0);
+  const hasMarkedWatchedRef = React.useRef(clip.is_watched);
 
   // 2X Playback Speed States & Refs
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -33,7 +40,7 @@ export default function FeedItem({
 
   // Unified Gesture Controls for Hold-to-2x
   const handlePointerDown = (e) => {
-    if (showNoteInput) return;
+    if (showNoteInput || !isActive) return; // Guard: no gestures on non-active clips
     // Only accept primary mouse click or touch
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
@@ -82,71 +89,85 @@ export default function FeedItem({
     triggerOnce: false,
   });
 
+  // Ref-ify callback props to prevent effect re-triggers from unstable function references.
+  // onInView is an inline arrow in FeedContainer — new reference every render.
+  // updateClipWatchPercent comes from context — new reference on library state changes.
+  // Without refs, EVERY clip's useEffect cleanup fires on each scroll, killing the hold timeout.
+  const onInViewRef = React.useRef(onInView);
+  onInViewRef.current = onInView;
+  const updateWatchPercentRef = React.useRef(updateClipWatchPercent);
+  updateWatchPercentRef.current = updateClipWatchPercent;
+
   // Notify parent when this specific item becomes the center of attention
   React.useEffect(() => {
-    let watchTimer;
-
     if (inView) {
-      onInView(clip.id);
-      
-      // Industrial Watch Rule: 20 seconds of active view = Watched
-      if (!clip.is_watched) {
-        watchTimer = setTimeout(() => {
-          console.log(`[FeedItem] Marking clip ${clip.id} as watched...`);
-          markClipWatched(clip.id);
-        }, 20000);
-      }
+      onInViewRef.current(clip.id);
     } else {
-      // Auto-pause when scrolling away
+      // Full state reset when scrolling away
       setIsPaused(false);
       setPlaybackRate(1);
       setIsHoldingSpeed(false);
-    }
+      isHoldingRef.current = false;
 
+      // Persist peak watch progress when scrolling away (only if improved)
+      if (maxProgressRef.current > (clip.watch_percent || 0)) {
+        updateWatchPercentRef.current(clip.id, maxProgressRef.current);
+      }
+    }
+  }, [inView, clip.id]); // Only actual data changes — no callback refs!
+
+  // Separate cleanup: clear hold timeout only on unmount (not on every effect re-trigger)
+  React.useEffect(() => {
     return () => {
-      if (watchTimer) clearTimeout(watchTimer);
-      if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
+      if (holdTimeoutRef.current) {
+        clearTimeout(holdTimeoutRef.current);
+        holdTimeoutRef.current = null;
+      }
     };
-  }, [inView, clip.id, clip.is_watched, onInView, markClipWatched]);
+  }, []);
+
+  // Reset loading state when becoming active (handles component reuse in explore feed)
+  React.useEffect(() => {
+    if (isActive) {
+      setIsLoading(true);
+    }
+  }, [isActive]);
+
+  // Auto-mark as watched when progress >= 80% (replaces old 20-second timer)
+  React.useEffect(() => {
+    if (progress >= 80 && !hasMarkedWatchedRef.current && inView) {
+      hasMarkedWatchedRef.current = true;
+      console.log(`[FeedItem] Auto-marking clip ${clip.id} as watched (${Math.round(progress)}% completion)`);
+      markClipWatched(clip.id);
+    }
+  }, [progress, clip.id, markClipWatched, inView]);
 
   return (
     <div 
       ref={ref}
       className="h-full w-full flex-shrink-0 snap-start relative bg-black flex flex-col items-center justify-center overflow-hidden"
     >
-      {/* Background Layer: Thumbnail placeholder for performance */}
-      {!isActive && (
-        <img 
-          src={video.image} 
-          alt="Video Background" 
-          className="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm scale-110"
-        />
-      )}
+      {/* Background Layer removed per user request */}
 
-      {/* Main Player Layer: Only mounted when active */}
-      <AnimatePresence mode="wait">
-        {isActive && (
-          <motion.div 
-            key={`player-${clip.id}`} // Stable Key: Prevents remounts on progress update
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 w-full h-full"
-          >
-            <YouTubePlayer 
-              videoId={video.id} 
-              start={clip.start} 
-              end={clip.end} 
-              isMuted={isMuted}
-              isPaused={isPaused}
-              playbackRate={playbackRate}
-              aspectRatio={video.aspectRatio || "9:16"}
-              onProgress={(p) => setProgress(p)}
-              onReady={() => setIsLoading(false)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Main Player Layer: Only mounted when active — no AnimatePresence to avoid gesture dead zones */}
+      {isActive && (
+        <div className="absolute inset-0 w-full h-full">
+          <YouTubePlayer 
+            videoId={video.id} 
+            start={clip.start} 
+            end={clip.end} 
+            isMuted={isMuted}
+            isPaused={isPaused}
+            playbackRate={playbackRate}
+            aspectRatio={video.aspectRatio || "9:16"}
+            onProgress={(p) => {
+              setProgress(p);
+              if (p > maxProgressRef.current) maxProgressRef.current = p;
+            }}
+            onReady={() => setIsLoading(false)}
+          />
+        </div>
+      )}
 
       {/* Speed Indicator Overlay (TikTok Style) */}
       <AnimatePresence>
@@ -188,16 +209,16 @@ export default function FeedItem({
         </AnimatePresence>
       </div>
 
-      {/* Loading Spinner */}
+      {/* Loading Spinner — no backdrop-blur to avoid GPU compositing overhead */}
       {isActive && isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
           <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin shadow-[0_0_15px_rgba(16,185,129,0.4)]" />
         </div>
       )}
 
       {/* Overlay: Branding & Info */}
-      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent p-8 pb-12 z-20 pointer-events-none">
-        <div className="max-w-md mx-auto space-y-4">
+      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent p-5 pb-6 z-20 pointer-events-none">
+        <div className="max-w-md mx-auto space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="bg-emerald-500 text-black text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase">
@@ -251,7 +272,6 @@ export default function FeedItem({
               </motion.div>
             )}
           </AnimatePresence>
-          
           <h2 className={`text-2xl font-bold tracking-tight leading-tight transition-opacity ${showNoteInput ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
             {clip.title}
           </h2>
@@ -260,13 +280,26 @@ export default function FeedItem({
             {clip.summary}
           </p>
 
+          {showGoToVideo && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("/clips", { state: { video } });
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 text-white/80 hover:text-white text-[10px] font-extrabold uppercase tracking-widest transition-all duration-200 pointer-events-auto active:scale-95 w-fit"
+            >
+              <span>video</span>
+              <span className="text-emerald-400 font-black">&gt;</span>
+            </button>
+          )}
+
           {/* Persistent Progress Bar (True Time Synced) */}
           <div className="pt-4 flex items-center gap-4">
             <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
              <div 
                className="h-full bg-emerald-400 shadow-[0_0_12px_#4ade80] transition-all duration-200 ease-linear"
                style={{ width: `${progress}%` }}
-             />
+              />
             </div>
             <span className="text-[10px] font-mono text-white/40">{clip.duration}</span>
           </div>

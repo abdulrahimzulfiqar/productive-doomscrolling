@@ -6,6 +6,7 @@ import AddVideoPage from "./pages/AddVideoPage";
 import ProcessingPage from "./pages/ProcessingPage";
 import ClipsPage from "./pages/ClipsPage";
 import FeedPage from "./pages/FeedPage";
+import ExploreSelectionPage from "./pages/ExploreSelectionPage";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LibraryProvider } from "./context/LibraryContext";
@@ -43,6 +44,7 @@ function AppContent() {
               <Route path="/processing" element={<ProcessingPage />} />
               <Route path="/clips" element={<ClipsPage />} />
               <Route path="/feed" element={<FeedPage />} />
+              <Route path="/explore/select" element={<ExploreSelectionPage />} />
             </Routes>
           </div>
 

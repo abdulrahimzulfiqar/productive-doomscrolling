@@ -37,10 +37,10 @@ export default function BottomNav() {
       <Link 
         to="/feed" 
         className={`flex flex-col items-center justify-center px-6 py-2 transition-all duration-300 active:scale-90 ${
-          location.pathname === '/feed' ? 'text-emerald-400' : 'text-slate-400 hover:text-emerald-200'
+          location.pathname.startsWith('/feed') || location.pathname.startsWith('/explore') ? 'text-emerald-400' : 'text-slate-400 hover:text-emerald-200'
         }`}
       >
-        <span className="material-symbols-outlined mb-1" style={location.pathname === '/feed' ? { fontVariationSettings: "'FILL' 1" } : {}}>
+        <span className="material-symbols-outlined mb-1" style={(location.pathname.startsWith('/feed') || location.pathname.startsWith('/explore')) ? { fontVariationSettings: "'FILL' 1" } : {}}>
           explore
         </span>
         <span className="font-lexend text-[10px] uppercase tracking-widest">Explore</span>
