@@ -27,9 +27,9 @@ export default function FeedPage() {
   // Get the interleaved, normalized explore feed
   const { exploreFeed: computedFeed, selectedVideos } = useExploreFeed();
 
-  // Freeze the explore feed order for the duration of this doomscrolling session.
+  // Freeze the explore feed IDs for the duration of this doomscrolling session.
   // This prevents clips from re-sorting or jumping around when watch progress updates.
-  const [exploreFeed, setExploreFeed] = useState([]);
+  const [exploreFeedIds, setExploreFeedIds] = useState([]);
 
   // Resolve starting clip for explore mode (from localStorage)
   const resumeKey = user ? `explore_resume_clip_id_${user.id}` : null;
@@ -50,30 +50,63 @@ export default function FeedPage() {
     }
   }, [library]);
 
-  // Freeze the feed when computed feed becomes available
+  // Freeze the feed IDs when computed feed becomes available
   useEffect(() => {
-    if (isExploreMode && computedFeed.length > 0 && exploreFeed.length === 0) {
-      setExploreFeed(computedFeed);
+    if (isExploreMode && computedFeed.length > 0 && exploreFeedIds.length === 0) {
+      setExploreFeedIds(computedFeed.map(c => c.id));
     }
-  }, [isExploreMode, computedFeed, exploreFeed.length]);
+  }, [isExploreMode, computedFeed, exploreFeedIds.length]);
+
+  // Live-map the frozen IDs back to the actual, up-to-date clip objects in the library context.
+  // Use a lookup Map for maximum O(N) performance.
+  const exploreFeed = React.useMemo(() => {
+    if (exploreFeedIds.length === 0) return [];
+    const clipMap = new Map();
+    library.forEach(video => {
+      video.clips?.forEach(clip => {
+        clipMap.set(clip.id, { ...clip, parentVideo: video });
+      });
+    });
+    return exploreFeedIds.map(id => clipMap.get(id)).filter(Boolean);
+  }, [exploreFeedIds, library]);
 
   useEffect(() => {
+    if (!isInitializing) return;
+    
     if (isExploreMode && libraryFetched && (exploreFeed.length > 0 || computedFeed.length === 0)) {
       const activeFeed = exploreFeed.length > 0 ? exploreFeed : computedFeed;
       if (resumeKey) {
         const savedClipId = localStorage.getItem(resumeKey);
-        // Verify that the saved clip actually exists in our current explore feed
-        if (savedClipId && activeFeed.some(c => c.id === savedClipId)) {
-          setStartClipId(savedClipId);
+        
+        // Find the saved clip in the active feed
+        const savedClip = activeFeed.find(c => c.id === savedClipId);
+        
+        if (savedClip) {
+          // If the saved clip is already watched, find the first unwatched clip in the feed instead
+          if (savedClip.is_watched) {
+            const firstUnwatched = activeFeed.find(c => !c.is_watched);
+            if (firstUnwatched) {
+              console.log(`[FeedPage] Saved clip ${savedClipId} is watched. Resuming at first unwatched: ${firstUnwatched.id}`);
+              setStartClipId(firstUnwatched.id);
+            } else {
+              // If all clips are watched, default to the saved clip
+              setStartClipId(savedClipId);
+            }
+          } else {
+            setStartClipId(savedClipId);
+          }
         } else if (activeFeed.length > 0) {
-          setStartClipId(activeFeed[0].id);
+          // Fallback to first unwatched clip
+          const firstUnwatched = activeFeed.find(c => !c.is_watched);
+          setStartClipId(firstUnwatched ? firstUnwatched.id : activeFeed[0].id);
         }
       } else if (activeFeed.length > 0) {
-        setStartClipId(activeFeed[0].id);
+        const firstUnwatched = activeFeed.find(c => !c.is_watched);
+        setStartClipId(firstUnwatched ? firstUnwatched.id : activeFeed[0].id);
       }
       setIsInitializing(false);
     }
-  }, [isExploreMode, exploreFeed, computedFeed, resumeKey, libraryFetched]);
+  }, [isExploreMode, exploreFeed, computedFeed, resumeKey, libraryFetched, isInitializing]);
 
   // Handle active clip change to persist resume state
   const handleActiveClipChange = (clipId) => {

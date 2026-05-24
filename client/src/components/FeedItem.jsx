@@ -133,14 +133,21 @@ export default function FeedItem({
     }
   }, [isActive]);
 
+  // Sync the ref if the clip changes (handles list updates and recycling)
+  const lastClipIdRef = React.useRef(clip.id);
+  if (lastClipIdRef.current !== clip.id) {
+    lastClipIdRef.current = clip.id;
+    hasMarkedWatchedRef.current = clip.is_watched;
+    maxProgressRef.current = clip.watch_percent || 0;
+  }
+
   // Auto-mark as watched when progress >= 80% (replaces old 20-second timer)
   React.useEffect(() => {
-    if (progress >= 80 && !hasMarkedWatchedRef.current && inView) {
+    if (progress >= 80 && !hasMarkedWatchedRef.current && isActive) {
       hasMarkedWatchedRef.current = true;
-      console.log(`[FeedItem] Auto-marking clip ${clip.id} as watched (${Math.round(progress)}% completion)`);
       markClipWatched(clip.id);
     }
-  }, [progress, clip.id, markClipWatched, inView]);
+  }, [progress, clip.id, markClipWatched, isActive]);
 
   return (
     <div 
@@ -225,6 +232,11 @@ export default function FeedItem({
                 Udoom Clip
               </span>
               <span className="text-white/40 text-xs font-medium italic">#{clip.id.split('-c')[1] || '?'}</span>
+              {(clip.is_watched || hasMarkedWatchedRef.current) && (
+                <span className="material-symbols-outlined text-emerald-400 !text-[14px] font-bold">
+                  check
+                </span>
+              )}
             </div>
 
             {/* Note Toggle Button */}
@@ -284,7 +296,7 @@ export default function FeedItem({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                navigate("/clips", { state: { video } });
+                navigate("/clips", { state: { video, fromExplore: true } });
               }}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 text-white/80 hover:text-white text-[10px] font-extrabold uppercase tracking-widest transition-all duration-200 pointer-events-auto active:scale-95 w-fit"
             >

@@ -10,6 +10,7 @@ export default function ClipsPage() {
   
   // Resolve the video dynamically from global context to react to changes (like clips watched)
   const initialVideo = location.state?.video || null;
+  const fromExplore = location.state?.fromExplore || false;
   const video = library.find(v => v.id === initialVideo?.id) || initialVideo;
   
   // We need to fetch details if we have no clips OR if the clips are 'lightweight' (only have an id, no title)
@@ -35,7 +36,13 @@ export default function ClipsPage() {
       {/* Cinematic Header */}
       <header className="fixed top-0 w-full z-50 bg-background/60 backdrop-blur-xl flex items-center gap-4 px-6 py-4 border-b border-white/5">
         <button 
-          onClick={() => navigate("/")}
+          onClick={() => {
+            if (fromExplore) {
+              navigate("/feed", { state: { exploreMode: true } });
+            } else {
+              navigate("/");
+            }
+          }}
           className="w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center text-primary active:scale-90 transition-transform border border-white/5"
         >
           <span className="material-symbols-outlined">arrow_back</span>

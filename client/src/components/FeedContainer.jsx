@@ -20,6 +20,18 @@ export default function FeedContainer({
   const [isMuted, setIsMuted] = useState(true);
   const containerRef = useRef(null);
 
+  // Refs to track absolute display counter in exploreMode
+  const initialWatchedCountRef = useRef(null);
+  if (initialWatchedCountRef.current === null) {
+    initialWatchedCountRef.current = clips.filter(c => c.is_watched).length;
+  }
+
+  const sessionStartIndexRef = useRef(null);
+  if (sessionStartIndexRef.current === null) {
+    const idx = clips.findIndex(c => c.id === (startClipId || clips[0]?.id));
+    sessionStartIndexRef.current = idx !== -1 ? idx : 0;
+  }
+
   // Industrial Standard: Handle Initial Scroll Position
   useEffect(() => {
     if (startClipId && containerRef.current) {
@@ -29,6 +41,20 @@ export default function FeedContainer({
       }
     }
   }, [startClipId]);
+
+  // Determine the display counter index
+  let displayIndex;
+  if (exploreMode) {
+    const currentWatchedCount = clips.filter(c => c.is_watched).length;
+    const sessionWatchedCount = Math.max(0, currentWatchedCount - initialWatchedCountRef.current);
+    const activeIndex = clips.findIndex(c => c.id === activeClipId);
+    const sessionOffset = activeIndex !== -1 ? activeIndex - sessionStartIndexRef.current : 0;
+    
+    displayIndex = initialWatchedCountRef.current + sessionOffset + sessionWatchedCount + 1;
+    displayIndex = Math.max(1, Math.min(clips.length, displayIndex));
+  } else {
+    displayIndex = clips.findIndex(c => c.id === activeClipId) + 1;
+  }
 
   return (
     <div className="fixed inset-0 bg-black z-[100] h-[100dvh] w-full flex flex-col overflow-hidden">
@@ -57,7 +83,7 @@ export default function FeedContainer({
         {/* Center: Clip Counter */}
         <div className="flex items-center">
           <span className="text-emerald-400 text-[10px] font-mono font-bold tracking-widest">
-            {clips.findIndex(c => c.id === activeClipId) + 1} / {clips.length}
+            {displayIndex} / {clips.length}
           </span>
         </div>
  
