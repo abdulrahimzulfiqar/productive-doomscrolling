@@ -18,7 +18,13 @@ export default function FeedContainer({
   const navigate = useNavigate();
   const [activeClipId, setActiveClipId] = useState(startClipId || (clips[0]?.id));
   const [isMuted, setIsMuted] = useState(true);
+  const [isActivePlayerLoading, setIsActivePlayerLoading] = useState(true);
   const containerRef = useRef(null);
+
+  // Reset active player loading state when changing slides
+  useEffect(() => {
+    setIsActivePlayerLoading(true);
+  }, [activeClipId]);
 
   // Refs to track absolute display counter in exploreMode
   const initialWatchedCountRef = useRef(null);
@@ -60,7 +66,7 @@ export default function FeedContainer({
     <div className="fixed inset-0 bg-black z-[100] h-[100dvh] w-full flex flex-col overflow-hidden">
       
       {/* Top Floating Controls */}
-      <div className="absolute top-0 w-full z-50 p-6 flex justify-between items-center pointer-events-none">
+      <div className="absolute top-0 w-full z-50 px-6 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center pointer-events-none">
         <div className="flex items-center gap-3 pointer-events-auto">
           <button 
             onClick={onClose}
@@ -102,33 +108,45 @@ export default function FeedContainer({
         ref={containerRef}
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
       >
-        {clips.map((clip) => (
-          <div 
-            key={clip.id} 
-            id={`feed-item-${clip.id}`} 
-            className="snap-start snap-always h-[100dvh] w-full"
-            style={{ contentVisibility: 'auto', containIntrinsicSize: '100dvh' }}
-          >
-            <FeedItem 
-              video={clip.parentVideo || video}
-              clip={clip}
-              isActive={activeClipId === clip.id}
-              isMuted={isMuted}
-              showGoToVideo={exploreMode}
-              onInView={(id) => {
-                setActiveClipId(id);
-                if (onActiveClipChange) {
-                  onActiveClipChange(id);
-                }
-              }}
-            />
-          </div>
-        ))}
+        {clips.map((clip, index) => {
+          const activeIndex = clips.findIndex(c => c.id === activeClipId);
+          const isActive = activeClipId === clip.id;
+          const isNext = index === activeIndex + 1;
+
+          return (
+            <div 
+              key={clip.id} 
+              id={`feed-item-${clip.id}`} 
+              className="snap-start snap-always h-[100dvh] w-full"
+              style={{ contentVisibility: 'auto', containIntrinsicSize: '100dvh' }}
+            >
+              <FeedItem 
+                video={clip.parentVideo || video}
+                clip={clip}
+                isActive={isActive}
+                isNext={isNext}
+                isMuted={isMuted}
+                showGoToVideo={exploreMode}
+                onPlayerReady={() => {
+                  if (isActive) {
+                    setIsActivePlayerLoading(false);
+                  }
+                }}
+                onInView={(id) => {
+                  setActiveClipId(id);
+                  if (onActiveClipChange) {
+                    onActiveClipChange(id);
+                  }
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Unmute Overlay (Persistent) */}
       <AnimatePresence>
-        {isMuted && (
+        {(isMuted && !isActivePlayerLoading) && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

@@ -64,14 +64,14 @@ export default function AddVideoPage() {
   return (
     <div className="min-h-screen bg-background text-on-surface pb-12">
       {/* Header - Already handled by App layout, but we can add secondary refinement if needed */}
-      <header className="fixed top-0 w-full z-40 bg-slate-950/60 backdrop-blur-xl flex justify-between items-center px-6 py-4">
+      <header className="fixed top-0 w-full z-40 bg-slate-950/60 backdrop-blur-xl flex justify-between items-center px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
         <h1 className="text-xl font-bold tracking-tighter text-emerald-400 font-lexend">Udoom</h1>
         <button className="text-slate-400">
            <span className="material-symbols-outlined">settings</span>
         </button>
       </header>
 
-      <main className="pt-20 md:pt-24 px-6 max-w-md mx-auto space-y-6 md:space-y-12">
+      <main className="pt-[calc(5rem+env(safe-area-inset-top))] md:pt-[calc(6rem+env(safe-area-inset-top))] px-6 max-w-md mx-auto space-y-6 md:space-y-12">
         {/* Hero Section */}
         <section className={`relative group transition-all duration-300 ${showInput ? "hidden md:block" : "block"}`}>
           <div className="overflow-hidden rounded-3xl w-64 h-64 md:w-full md:h-[340px] mx-auto relative">

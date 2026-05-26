@@ -37,7 +37,7 @@ function AppContent() {
     <LibraryProvider>
       <BrowserRouter>
         <div className="mx-auto w-full bg-surface min-h-[100dvh] relative shadow-2xl overflow-hidden">
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden pb-24">
+          <div className="h-full w-full overflow-y-auto overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]">
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/add" element={<AddVideoPage />} />

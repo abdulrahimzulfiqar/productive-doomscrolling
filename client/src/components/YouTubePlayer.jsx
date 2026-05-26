@@ -56,6 +56,8 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
     width: "100%",
     playerVars: {
       autoplay: 1,
+      mute: 1, // Start muted for iOS autoplay permission
+      playsinline: 1, // Avoid fullscreen hijacks on iOS
       controls: 0,
       modestbranding: 1,
       rel: 0,
@@ -74,6 +76,21 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
       playerRef.current.mute();
     } else {
       playerRef.current.unMute();
+    }
+
+    // Explicitly call playVideo to kickstart playback, or pauseVideo if preloading
+    if (!latestProps.current.isPaused) {
+      try {
+        playerRef.current.playVideo();
+      } catch (e) {
+        console.warn("YouTube playVideo command blocked or failed:", e);
+      }
+    } else {
+      try {
+        playerRef.current.pauseVideo();
+      } catch (e) {
+        console.warn("YouTube pauseVideo command blocked or failed:", e);
+      }
     }
 
     try {

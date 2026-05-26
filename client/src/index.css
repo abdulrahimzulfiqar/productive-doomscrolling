@@ -3,9 +3,23 @@
 @tailwind utilities;
 
 @layer base {
-  body {
+  html, body {
     @apply bg-surface text-on-surface font-lexend antialiased;
-    min-height: max(884px, 100dvh);
+    height: 100%;
+    /* Disables overscroll bounce on mobile to stabilize scroll snapping */
+    overscroll-behavior-y: none;
+
+    /* Disable default mobile selection and tap highlights for native app feel */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Allow text selection in inputs and textareas */
+  input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
 

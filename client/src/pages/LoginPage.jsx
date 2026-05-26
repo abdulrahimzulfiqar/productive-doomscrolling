@@ -156,17 +156,7 @@ export default function LoginPage() {
           </button>
         </p>
 
-        {/* Demo Credentials */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 space-y-2">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/60 font-bold text-center">
-            Demo Access
-          </p>
-          <div className="text-center space-y-1">
-            <p className="text-white/40 text-xs">
-              <span className="text-white/60 font-mono">yc.demo@gmail.com</span> / <span className="text-white/60 font-mono">yc123456</span>
-            </p>
-          </div>
-        </div>
+
       </motion.div>
     </div>
   );

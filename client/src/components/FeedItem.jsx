@@ -5,6 +5,8 @@ import YouTubePlayer from "./YouTubePlayer";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "../hooks/useLibrary";
 
+const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
 /**
  * FeedItem Component
  * Represents a single scrollable slide in the TikTok-style feed.
@@ -16,9 +18,11 @@ export default function FeedItem({
   video, 
   clip, 
   isActive, 
+  isNext,
   isMuted, 
   onInView,
-  showGoToVideo = false
+  showGoToVideo = false,
+  onPlayerReady
 }) {
   const navigate = useNavigate();
   const { markClipWatched, saveClipNote, updateClipWatchPercent } = useLibrary();
@@ -27,6 +31,7 @@ export default function FeedItem({
   const [noteText, setNoteText] = useState(clip.user_notes || "");
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLocallyMuted, setIsLocallyMuted] = useState(isIOS && !isMuted);
 
   // Peak progress tracking for watch_percent persistence
   const maxProgressRef = React.useRef(clip.watch_percent || 0);
@@ -40,7 +45,7 @@ export default function FeedItem({
 
   // Unified Gesture Controls for Hold-to-2x
   const handlePointerDown = (e) => {
-    if (showNoteInput || !isActive) return; // Guard: no gestures on non-active clips
+    if (showNoteInput || !isActive || isLoading) return; // Guard: no gestures on non-active or loading clips
     // Only accept primary mouse click or touch
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
@@ -73,14 +78,18 @@ export default function FeedItem({
   };
 
   const handleClick = () => {
-    if (showNoteInput) return;
+    if (showNoteInput || isLoading) return; // Guard: Ignore early taps before player is fully loaded
     
     if (isHoldingRef.current) {
       // It was a long press, so ignore this click
       isHoldingRef.current = false;
     } else {
-      // It was a simple quick tap, toggle Play/Pause
-      setIsPaused(prev => !prev);
+      if (isLocallyMuted) {
+        setIsLocallyMuted(false);
+      } else {
+        // It was a simple quick tap, toggle Play/Pause
+        setIsPaused(prev => !prev);
+      }
     }
   };
 
@@ -126,10 +135,10 @@ export default function FeedItem({
     };
   }, []);
 
-  // Reset loading state when becoming active (handles component reuse in explore feed)
+  // When this item becomes active, reset local mute state if on iOS
   React.useEffect(() => {
     if (isActive) {
-      setIsLoading(true);
+      setIsLocallyMuted(isIOS && !isMuted);
     }
   }, [isActive]);
 
@@ -139,6 +148,7 @@ export default function FeedItem({
     lastClipIdRef.current = clip.id;
     hasMarkedWatchedRef.current = clip.is_watched;
     maxProgressRef.current = clip.watch_percent || 0;
+    setIsLoading(true);
   }
 
   // Auto-mark as watched when progress >= 80% (replaces old 20-second timer)
@@ -156,22 +166,25 @@ export default function FeedItem({
     >
       {/* Background Layer removed per user request */}
 
-      {/* Main Player Layer: Only mounted when active — no AnimatePresence to avoid gesture dead zones */}
-      {isActive && (
-        <div className="absolute inset-0 w-full h-full">
+      {/* Main Player Layer: Mounted when active or when preloading (isNext) */}
+      {(isActive || isNext) && (
+        <div className={`absolute inset-0 w-full h-full ${isActive ? 'z-0' : 'pointer-events-none invisible'}`}>
           <YouTubePlayer 
             videoId={video.id} 
             start={clip.start} 
             end={clip.end} 
-            isMuted={isMuted}
-            isPaused={isPaused}
+            isMuted={isMuted || isLocallyMuted}
+            isPaused={!isActive || isPaused}
             playbackRate={playbackRate}
             aspectRatio={video.aspectRatio || "9:16"}
             onProgress={(p) => {
               setProgress(p);
               if (p > maxProgressRef.current) maxProgressRef.current = p;
             }}
-            onReady={() => setIsLoading(false)}
+            onReady={() => {
+              setIsLoading(false);
+              if (onPlayerReady) onPlayerReady();
+            }}
           />
         </div>
       )}
@@ -223,9 +236,26 @@ export default function FeedItem({
         </div>
       )}
 
+      {/* iOS forced muted autoplay overlay */}
+      <AnimatePresence>
+        {(isLocallyMuted && !isLoading) && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-30 flex items-center justify-center bg-transparent pointer-events-none"
+          >
+            <div className="bg-white/10 backdrop-blur-xl px-6 py-3 rounded-full flex items-center gap-3 border border-white/10 shadow-2xl">
+              <span className="material-symbols-outlined text-emerald-400">volume_up</span>
+              <span className="text-sm font-bold tracking-tight text-white">Tap to Unmute</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Overlay: Branding & Info */}
-      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent p-5 pb-6 z-20 pointer-events-none">
-        <div className="max-w-md mx-auto space-y-3">
+      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/60 to-transparent px-5 pt-5 pb-[calc(0.15rem+env(safe-area-inset-bottom))] z-20 pointer-events-none">
+        <div className="max-w-md mx-auto space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="bg-emerald-500 text-black text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase">
@@ -306,7 +336,7 @@ export default function FeedItem({
           )}
 
           {/* Persistent Progress Bar (True Time Synced) */}
-          <div className="pt-4 flex items-center gap-4">
+          <div className="pt-0 flex items-center gap-4">
             <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
              <div 
                className="h-full bg-emerald-400 shadow-[0_0_12px_#4ade80] transition-all duration-200 ease-linear"

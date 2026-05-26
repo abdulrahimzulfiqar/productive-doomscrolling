@@ -181,7 +181,7 @@ export default function HomePage() {
   
   return (
     <>
-      <header className="fixed top-0 w-full z-40 bg-slate-950/60 backdrop-blur-xl shadow-sm shadow-black/50 flex justify-between items-center px-6 py-4">
+      <header className="fixed top-0 w-full z-40 bg-slate-950/60 backdrop-blur-xl shadow-sm shadow-black/50 flex justify-between items-center px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container border border-outline-variant/20">
             <img 
@@ -202,7 +202,7 @@ export default function HomePage() {
         </button>
       </header>
 
-      <main className="pt-24 px-6 pb-24">
+      <main className="pt-[calc(6rem+env(safe-area-inset-top))] px-6 pb-24">
         {/* Search & Filter Section */}
         <section className="mb-8 max-w-lg mx-auto text-left">
           <h2 className="text-3xl font-extrabold tracking-tight mb-6">Library</h2>

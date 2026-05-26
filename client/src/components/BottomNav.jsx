@@ -5,7 +5,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 w-full flex justify-center items-center z-50">
-      <div className="w-full max-w-2xl flex justify-around items-center px-4 pb-8 pt-4 bg-slate-950/60 backdrop-blur-xl rounded-t-[3rem] shadow-[0_-10px_40px_rgba(0,0,0,0.6)] border-t border-white/5">
+      <div className="w-full max-w-2xl flex justify-around items-center px-4 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom))] bg-slate-950/60 backdrop-blur-xl rounded-t-[3rem] shadow-[0_-10px_40px_rgba(0,0,0,0.6)] border-t border-white/5">
       
       {/* Home / Library */}
       <Link 

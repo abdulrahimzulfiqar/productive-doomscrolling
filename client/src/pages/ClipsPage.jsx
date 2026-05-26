@@ -34,7 +34,7 @@ export default function ClipsPage() {
   return (
     <div className="min-h-screen bg-background text-on-surface pb-32">
       {/* Cinematic Header */}
-      <header className="fixed top-0 w-full z-50 bg-background/60 backdrop-blur-xl flex items-center gap-4 px-6 py-4 border-b border-white/5">
+      <header className="fixed top-0 w-full z-50 bg-background/60 backdrop-blur-xl flex items-center gap-4 px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4 border-b border-white/5">
         <button 
           onClick={() => {
             if (fromExplore) {
@@ -55,7 +55,7 @@ export default function ClipsPage() {
         </div>
       </header>
 
-      <main className="pt-20 space-y-0">
+      <main className="pt-[calc(5rem+env(safe-area-inset-top))] space-y-0">
         {/* Cinema Banner Section */}
         <div className="relative aspect-video w-full overflow-hidden shadow-2xl">
           <img 
