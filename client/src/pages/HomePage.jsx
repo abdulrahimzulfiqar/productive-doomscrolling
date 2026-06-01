@@ -151,13 +151,19 @@ export default function HomePage() {
   const { library, saveClipNote } = useLibrary();
   const { signOut } = useAuth();
   const [activeTab, setActiveTab] = useState("Videos");
+  const [searchQuery, setSearchQuery] = useState("");
   
   const tabs = ["Videos", "My Insights"];
 
-  // RLS handles per-user data isolation, so just filter out failed videos
+  // Filter out failed videos and apply search keyword
   const filteredVideos = React.useMemo(() => {
-    return library.filter(v => v.status !== 'failed');
-  }, [library]);
+    return library
+      .filter(v => v.status !== 'failed')
+      .filter(v => {
+        if (!searchQuery) return true;
+        return v.title?.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+  }, [library, searchQuery]);
 
   // Group clips-with-notes by their parent video
   const { groupedInsights, totalNotes } = React.useMemo(() => {
@@ -168,16 +174,25 @@ export default function HomePage() {
       video.clips?.forEach(clip => {
         if (clip.user_notes) {
           count++;
-          if (!videoMap.has(video.id)) {
-            videoMap.set(video.id, { video, notedClips: [] });
+          
+          // Apply search filter if query is active
+          const matchesSearch = !searchQuery || 
+            clip.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            clip.user_notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            video.title?.toLowerCase().includes(searchQuery.toLowerCase());
+            
+          if (matchesSearch) {
+            if (!videoMap.has(video.id)) {
+              videoMap.set(video.id, { video, notedClips: [] });
+            }
+            videoMap.get(video.id).notedClips.push(clip);
           }
-          videoMap.get(video.id).notedClips.push(clip);
         }
       });
     });
 
     return { groupedInsights: Array.from(videoMap.values()), totalNotes: count };
-  }, [library]);
+  }, [library, searchQuery]);
   
   return (
     <>
@@ -210,6 +225,8 @@ export default function HomePage() {
           <div className="relative mb-6 group">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
             <input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-surface-container-highest border-none rounded-full py-4 pl-12 pr-6 text-on-surface focus:ring-2 focus:ring-primary/40 focus:outline-none placeholder:text-outline transition-all" 
               placeholder={activeTab === "Videos" ? "Search saved videos..." : "Search your insights..."} 
               type="text"

@@ -9,10 +9,7 @@
     /* Disables overscroll bounce on mobile to stabilize scroll snapping */
     overscroll-behavior-y: none;
 
-    /* Disable default mobile selection and tap highlights for native app feel */
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
+    /* Disable tap highlights for native app feel */
     -webkit-tap-highlight-color: transparent;
   }
 

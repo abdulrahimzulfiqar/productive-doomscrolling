@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 import BottomNav from "./components/BottomNav";
 import HomePage from "./pages/HomePage";
@@ -8,13 +8,34 @@ import ClipsPage from "./pages/ClipsPage";
 import FeedPage from "./pages/FeedPage";
 import ExploreSelectionPage from "./pages/ExploreSelectionPage";
 import LoginPage from "./pages/LoginPage";
+import LandingPage from "./pages/LandingPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import RefundPolicy from "./pages/RefundPolicy";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LibraryProvider } from "./context/LibraryContext";
 
-/**
- * AppContent: The authenticated app shell.
- * Renders either the Login page or the main app based on auth state.
- */
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function LibraryShell({ children }) {
+  return (
+    <LibraryProvider>
+      <div className="mx-auto w-full bg-surface min-h-[100dvh] relative shadow-2xl overflow-hidden">
+        <div className="h-full w-full overflow-y-auto overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]">
+          {children}
+        </div>
+        <BottomNav />
+      </div>
+    </LibraryProvider>
+  );
+}
+
 function AppContent() {
   const { user, authLoading } = useAuth();
 
@@ -27,35 +48,30 @@ function AppContent() {
     );
   }
 
-  // Not logged in: show login page
-  if (!user) {
-    return <LoginPage />;
-  }
-
-  // Logged in: show the full app
   return (
-    <LibraryProvider>
-      <BrowserRouter>
-        <div className="mx-auto w-full bg-surface min-h-[100dvh] relative shadow-2xl overflow-hidden">
-          <div className="h-full w-full overflow-y-auto overflow-x-hidden pb-[calc(6rem+env(safe-area-inset-bottom))]">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/add" element={<AddVideoPage />} />
-              <Route path="/processing" element={<ProcessingPage />} />
-              <Route path="/clips" element={<ClipsPage />} />
-              <Route path="/feed" element={<FeedPage />} />
-              <Route path="/explore/select" element={<ExploreSelectionPage />} />
-            </Routes>
-          </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={user ? <LibraryShell><HomePage /></LibraryShell> : <LandingPage />} />
+        <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/refund" element={<RefundPolicy />} />
 
-          {/* Global Bottom Navigation */}
-          <BottomNav />
-        </div>
+        {/* Protected Routes */}
+        <Route path="/add" element={<ProtectedRoute><LibraryShell><AddVideoPage /></LibraryShell></ProtectedRoute>} />
+        <Route path="/processing" element={<ProtectedRoute><LibraryShell><ProcessingPage /></LibraryShell></ProtectedRoute>} />
+        <Route path="/clips" element={<ProtectedRoute><LibraryShell><ClipsPage /></LibraryShell></ProtectedRoute>} />
+        <Route path="/feed" element={<ProtectedRoute><LibraryShell><FeedPage /></LibraryShell></ProtectedRoute>} />
+        <Route path="/explore/select" element={<ProtectedRoute><LibraryShell><ExploreSelectionPage /></LibraryShell></ProtectedRoute>} />
 
-        {/* Vercel Web Analytics */}
-        <Analytics />
-      </BrowserRouter>
-    </LibraryProvider>
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
+    </BrowserRouter>
   );
 }
 
