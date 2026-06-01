@@ -5,6 +5,19 @@ import { motion } from "framer-motion";
 export default function LandingPage() {
   const navigate = useNavigate();
 
+  React.useEffect(() => {
+    if (window.location.hash) {
+      const id = window.location.hash.replace("#", "");
+      const element = document.getElementById(id);
+      if (element) {
+        // Wait for render to complete
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth" });
+        }, 200);
+      }
+    }
+  }, []);
+
   const features = [
     {
       icon: "menu_book",
@@ -140,12 +153,17 @@ export default function LandingPage() {
           >
             Start Learning For Free
           </button>
-          <a
-            href="#pricing"
-            className="w-full sm:w-auto text-white/70 hover:text-white text-sm font-semibold tracking-wide px-8 py-4.5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-center"
+          <button
+            onClick={() => {
+              const element = document.getElementById("pricing");
+              if (element) {
+                element.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
+            className="w-full sm:w-auto text-white/70 hover:text-white text-sm font-semibold tracking-wide px-8 py-4.5 rounded-2xl border border-white/10 hover:border-white/20 transition-all text-center cursor-pointer"
           >
             View Pricing
-          </a>
+          </button>
         </motion.div>
       </section>
 
