@@ -55,7 +55,7 @@ export default function TermsOfService() {
             <ul className="list-disc list-inside pl-4 space-y-1 text-white/60">
               <li>Credits do not roll over to the next billing cycle.</li>
               <li>You may not use bots, scripts, or automated tools to scrape, exploit, or overload our AI processing pipeline.</li>
-              <li>All subscription billing, payment processing, and invoicing are securely handled by our authorized Merchant of Record, **Lemon Squeezy**. By completing a purchase, you agree to their buyer terms and conditions.</li>
+              <li>All subscription billing, payment processing, and invoicing are securely handled by our authorized Merchant of Record, **Paddle**. By completing a purchase, you agree to their buyer terms and conditions.</li>
             </ul>
           </section>
 

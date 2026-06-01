@@ -34,7 +34,7 @@ export default function PrivacyPolicy() {
             <ul className="list-disc list-inside pl-4 space-y-1 text-white/60">
               <li>**Account Information:** Your name, email address, password, and profile preferences when you register.</li>
               <li>**User Content:** Video links (URLs) you submit, processed transcripts, and any personal notes or summaries you create inside the app.</li>
-              <li>**Payment Information:** Payment details processed securely by our third-party merchant of record (Lemon Squeezy). We do not store credit card numbers on our servers.</li>
+              <li>**Payment Information:** Payment details processed securely by our third-party merchant of record (Paddle). We do not store credit card numbers on our servers.</li>
             </ul>
           </section>
 
@@ -60,7 +60,7 @@ export default function PrivacyPolicy() {
             <ul className="list-disc list-inside pl-4 space-y-1 text-white/60">
               <li>**YouTube API / Embeds:** Our video player displays content from YouTube. By using Udoom, you agree to be bound by the YouTube Terms of Service and Google Privacy Policy.</li>
               <li>**Supabase:** We use Supabase for secure cloud authentication and database storage.</li>
-              <li>**Lemon Squeezy:** All payment transactions, subscription billing, and VAT/sales tax calculations are processed securely by our certified Merchant of Record partner.</li>
+              <li>**Paddle:** All payment transactions, subscription billing, and VAT/sales tax calculations are processed securely by our certified Merchant of Record partner.</li>
             </ul>
           </section>
 

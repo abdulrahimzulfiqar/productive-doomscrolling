@@ -50,7 +50,7 @@ export default function RefundPolicy() {
             </p>
             <ul className="list-disc list-inside pl-4 space-y-1 text-white/60">
               <li>Your Udoom account email address.</li>
-              <li>Your transaction reference number or invoice ID (provided by our merchant of record, Lemon Squeezy).</li>
+              <li>Your transaction reference number or invoice ID (provided by our merchant of record, Paddle).</li>
               <li>A brief explanation of why you are requesting a refund (your feedback helps us improve!).</li>
             </ul>
           </section>

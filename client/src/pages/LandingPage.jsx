@@ -242,7 +242,7 @@ export default function LandingPage() {
             &copy; {new Date().getFullYear()} Udoom. All rights reserved.
           </p>
           <p className="text-white/25 text-[10px] max-w-xs leading-relaxed">
-            Payments on Udoom are securely processed by Lemon Squeezy, our authorized Merchant of Record.
+            Payments on Udoom are securely processed by Paddle, our authorized Merchant of Record.
           </p>
           <p className="text-white/15 text-[9px] max-w-xs leading-normal">
             Disclaimer: Udoom is an independent platform and is not affiliated, endorsed, or officially connected with YouTube, LLC or Google LLC. We utilize public embeds and APIs in compliance with standard developer terms.
