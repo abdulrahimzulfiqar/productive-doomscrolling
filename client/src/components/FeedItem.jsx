@@ -162,7 +162,13 @@ export default function FeedItem({
   return (
     <div 
       ref={ref}
-      className="h-full w-full flex-shrink-0 snap-start relative bg-black flex flex-col items-center justify-center overflow-hidden"
+      className="h-full w-full flex-shrink-0 snap-start relative bg-black flex flex-col items-center justify-center overflow-hidden select-none"
+      style={{
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
+        WebkitTapHighlightColor: "transparent"
+      }}
     >
       {/* Background Layer removed per user request */}
 
@@ -213,7 +219,13 @@ export default function FeedItem({
         onPointerCancel={handlePointerUpOrCancel}
         onPointerLeave={handlePointerUpOrCancel}
         onClick={handleClick}
-        className={`absolute inset-0 z-10 flex items-center justify-center ${showNoteInput ? 'pointer-events-none' : 'cursor-pointer'}`}
+        className={`absolute inset-0 z-10 flex items-center justify-center ${showNoteInput ? 'pointer-events-none' : 'cursor-pointer select-none'}`}
+        style={{
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+          WebkitTapHighlightColor: "transparent"
+        }}
       >
         <AnimatePresence>
           {(isPaused && !showNoteInput) && (
