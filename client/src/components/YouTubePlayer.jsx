@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useId } from "react";
 import YouTube from "react-youtube";
 
 /**
@@ -9,6 +9,11 @@ import YouTube from "react-youtube";
 export default function YouTubePlayer({ videoId, start, end, onReady, onProgress, isMuted, isPaused, aspectRatio = "9:16", playbackRate = 1 }) {
   const playerRef = useRef(null);
   const scrollInterval = useRef(null);
+
+  // Generate a unique ID per instance to scope CSS and prevent global style collisions
+  // when multiple players with different aspect ratios are mounted (e.g. explore mode).
+  const reactId = useId();
+  const scopeId = reactId.replace(/:/g, '');
 
   // Sync latest props into a ref to avoid stale closures in onPlayerReady without triggering re-renders
   const latestProps = useRef({ isMuted, isPaused, playbackRate });
@@ -162,11 +167,11 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
         videoId={videoId}
         opts={opts}
         onReady={onPlayerReady}
-        className="youtube-container"
-        iframeClassName="youtube-iframe"
+        className={`yt-container-${scopeId}`}
+        iframeClassName={`yt-iframe-${scopeId}`}
       />
       <style>{`
-        .youtube-container {
+        .yt-container-${scopeId} {
           position: relative;
           width: 100%;
           ${aspectRatio === '1:1' ? 'aspect-ratio: 1 / 1;' : ''}
@@ -174,7 +179,7 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
           height: ${aspectRatio === '9:16' ? '100%' : 'auto'};
           overflow: hidden;
         }
-        .youtube-iframe {
+        .yt-iframe-${scopeId} {
           position: absolute;
           top: 50%;
           left: 50%;
@@ -194,12 +199,12 @@ export default function YouTubePlayer({ videoId, start, end, onReady, onProgress
 
         ${aspectRatio === '9:16' ? `
         @media (min-aspect-ratio: 16/9) {
-          .youtube-iframe {
+          .yt-iframe-${scopeId} {
             height: 56.25vw;
           }
         }
         @media (max-aspect-ratio: 16/9) {
-          .youtube-iframe {
+          .yt-iframe-${scopeId} {
             width: 177.78vh;
           }
         }
