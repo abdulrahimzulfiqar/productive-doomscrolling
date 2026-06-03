@@ -67,7 +67,9 @@ export default function FeedPage() {
         clipMap.set(clip.id, { ...clip, parentVideo: video });
       });
     });
-    return exploreFeedIds.map(id => clipMap.get(id)).filter(Boolean);
+    const mapped = exploreFeedIds.map(id => clipMap.get(id)).filter(Boolean);
+    console.log("[FeedPage] exploreFeed mapped:", mapped.map(c => ({ id: c.id, title: c.title, parentAspectRatio: c.parentVideo?.aspectRatio, parent_aspect_ratio: c.parentVideo?.aspect_ratio })));
+    return mapped;
   }, [exploreFeedIds, library]);
 
   useEffect(() => {

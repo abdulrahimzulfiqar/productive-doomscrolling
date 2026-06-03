@@ -182,7 +182,7 @@ export default function FeedItem({
             isMuted={isMuted || isLocallyMuted}
             isPaused={!isActive || isPaused}
             playbackRate={playbackRate}
-            aspectRatio={video.aspectRatio || "9:16"}
+            aspectRatio={video?.aspectRatio || video?.aspect_ratio || "9:16"}
             onProgress={(p) => {
               setProgress(p);
               if (p > maxProgressRef.current) maxProgressRef.current = p;
