@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "../hooks/useLibrary";
+import { useAuth } from "../context/AuthContext";
+import UpgradeModal from "../components/UpgradeModal";
 
 export default function ProcessingPage() {
   const location = useLocation();
@@ -13,6 +15,9 @@ export default function ProcessingPage() {
   const [error, setError] = useState(null);
   const [isFinished, setIsFinished] = useState(false);
   const { videoId, url } = location.state || {};
+  const { user } = useAuth();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const isLimitError = error && (error.includes("limit") || error.includes("upgrade") || error.includes("tier"));
 
   // Simplified Udoom pipeline steps
   const steps = [
@@ -45,7 +50,7 @@ export default function ProcessingPage() {
         const response = await fetch(`${backendUrl}/api/v1/process`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url })
+          body: JSON.stringify({ url, user_id: user?.id })
         });
 
         if (!response.ok) {
@@ -225,24 +230,54 @@ export default function ProcessingPage() {
               className="w-full max-w-sm bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-center text-white"
             >
               <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="material-symbols-outlined text-red-400 text-3xl">subtitles_off</span>
+                <span className="material-symbols-outlined text-red-400 text-3xl">
+                  {isLimitError ? "upgrade" : "subtitles_off"}
+                </span>
               </div>
-              <h3 className="text-xl font-bold mb-2">No Transcript Available</h3>
+              <h3 className="text-xl font-bold mb-2">
+                {isLimitError ? "Limit Reached" : "Synthesis Failed"}
+              </h3>
               <p className="text-white/60 text-sm mb-6 leading-relaxed">
-                {error.includes("No transcript available")
+                {isLimitError ? error : error.includes("No transcript available")
                   ? "This YouTube video does not have any transcript/captions available."
                   : "We encountered an issue downloading the video metadata or transcript."}
               </p>
-              <button
-                onClick={() => navigate("/")}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black uppercase text-xs tracking-wider rounded-xl transition-all active:scale-95 duration-150"
-              >
-                Go to Library
-              </button>
+              {isLimitError ? (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowUpgradeModal(true)}
+                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black uppercase text-xs tracking-wider rounded-xl transition-all active:scale-95 duration-150 cursor-pointer"
+                  >
+                    Upgrade Plan
+                  </button>
+                  <button
+                    onClick={() => navigate("/")}
+                    className="w-full py-3 bg-white/5 hover:bg-white/10 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all active:scale-95 duration-150 cursor-pointer"
+                  >
+                    Go to Library
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => navigate("/")}
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black uppercase text-xs tracking-wider rounded-xl transition-all active:scale-95 duration-150 cursor-pointer"
+                >
+                  Go to Library
+                </button>
+              )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => {
+          setShowUpgradeModal(false);
+          navigate("/");
+        }}
+        reason="Increase processing limits"
+      />
     </div>
   );
 }

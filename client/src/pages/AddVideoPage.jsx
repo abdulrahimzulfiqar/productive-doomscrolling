@@ -3,17 +3,28 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "../hooks/useLibrary";
 import { extractYoutubeId, getYoutubeThumbnail } from "../utils/videoUtils";
+import { useAuth } from "../context/AuthContext";
+import UpgradeModal from "../components/UpgradeModal";
 
 export default function AddVideoPage() {
   const navigate = useNavigate();
   const { addVideo, library } = useLibrary();
+  const { subscription } = useAuth();
   const [showInput, setShowInput] = useState(false);
   const [url, setUrl] = useState("");
   const [aspectRatio, setAspectRatio] = useState(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const handleProcess = async (e) => {
     e.preventDefault();
+    
+    // Frontend Quota Enforcement
+    if (subscription && subscription.quota_used >= subscription.quota_limit) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     if (url.trim()) {
       const videoId = extractYoutubeId(url);
       
@@ -157,37 +168,62 @@ export default function AddVideoPage() {
 
                   <div className="pt-2">
                     <div className="flex gap-4 justify-center">
-                      <button 
-                        onClick={() => setAspectRatio("1:1")}
-                        className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition-all ${aspectRatio === '1:1' ? 'border-primary bg-primary/10 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-slate-400 hover:border-primary/50 hover:text-primary/70'}`}
-                      >
-                        <div className="w-8 h-8 border-[3px] border-current rounded-sm"></div>
-                      </button>
-                      <button 
-                        onClick={() => setAspectRatio("16:9")}
-                        className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition-all ${aspectRatio === '16:9' ? 'border-primary bg-primary/10 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-slate-400 hover:border-primary/50 hover:text-primary/70'}`}
-                      >
-                        <div className="w-10 h-6 border-[3px] border-current rounded-sm"></div>
-                      </button>
-                      <button 
-                        onClick={() => setAspectRatio("9:16")}
-                        className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition-all ${aspectRatio === '9:16' ? 'border-primary bg-primary/10 text-primary' : 'border-surface-container-highest bg-surface-container-lowest text-slate-400 hover:border-primary/50 hover:text-primary/70'}`}
-                      >
-                        <div className="w-6 h-10 border-[3px] border-current rounded-sm"></div>
-                      </button>
+                      {[
+                        { ratio: "1:1", icon: <div className="w-8 h-8 border-[3px] border-current rounded-sm"></div> },
+                        { ratio: "16:9", icon: <div className="w-10 h-6 border-[3px] border-current rounded-sm"></div> },
+                        { ratio: "9:16", icon: <div className="w-6 h-10 border-[3px] border-current rounded-sm"></div> }
+                      ].map(({ ratio, icon }) => {
+                        const isFree = !subscription || subscription.subscription_tier === "free";
+                        return (
+                          <button 
+                            key={ratio}
+                            type="button"
+                            onClick={() => {
+                              if (isFree) {
+                                setShowUpgradeModal(true);
+                              } else {
+                                setAspectRatio(ratio);
+                              }
+                            }}
+                            className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition-all relative ${
+                              aspectRatio === ratio 
+                                ? 'border-primary bg-primary/10 text-primary' 
+                                : 'border-surface-container-highest bg-surface-container-lowest text-slate-400 hover:border-primary/50 hover:text-primary/70'
+                            }`}
+                          >
+                            {icon}
+                            {isFree && (
+                              <div className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 rounded-full w-4 h-4 flex items-center justify-center border border-slate-900 shadow-md">
+                                <span className="material-symbols-outlined !text-[10px] font-black">lock</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {(!subscription || subscription.subscription_tier === "free") && (
+                      <p className="text-[10px] text-center text-white/40 mt-3">
+                        Custom aspect ratios require <span className="text-emerald-400 font-bold">Udoom Plus</span> or <span className="text-teal-400 font-bold">Pro</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Action Button Section - specifically for the link input */}
                   <div className="pt-4">
                     <motion.button 
-                      disabled={!url.trim() || !aspectRatio || isChecking}
-                      onClick={handleProcess}
+                      disabled={!url.trim() || (!aspectRatio && (!subscription || subscription.subscription_tier !== "free")) || isChecking}
+                      onClick={(e) => {
+                        // For free tier, default to 9:16 if not set
+                        if (!aspectRatio && (!subscription || subscription.subscription_tier === "free")) {
+                          setAspectRatio("9:16");
+                        }
+                        handleProcess(e);
+                      }}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ 
-                        opacity: (url.trim() && aspectRatio && !isChecking) ? 1 : 0.4,
+                        opacity: (url.trim() && (aspectRatio || (!subscription || subscription.subscription_tier === "free")) && !isChecking) ? 1 : 0.4,
                         y: 0,
-                        scale: (url.trim() && aspectRatio && !isChecking) ? 1 : 0.98
+                        scale: (url.trim() && (aspectRatio || (!subscription || subscription.subscription_tier === "free")) && !isChecking) ? 1 : 0.98
                       }}
                       className="w-full bg-gradient-to-br from-emerald-300 via-emerald-400 to-emerald-600 text-slate-950 py-5 rounded-full font-bold shadow-[0_0_25px_rgba(62,180,137,0.3)] hover:shadow-[0_0_35px_rgba(62,180,137,0.5)] active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:cursor-not-allowed disabled:hover:shadow-none"
                     >
@@ -210,6 +246,7 @@ export default function AddVideoPage() {
           </AnimatePresence>
         </section>
       </main>
+      <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} reason="Increase video processing limits" />
     </div>
   );
 }

@@ -6,6 +6,7 @@ class ProcessVideoRequest(BaseModel):
     Incoming payload from the frontend asking to process a video.
     """
     url: HttpUrl = Field(..., description="The YouTube URL or local file path to process")
+    user_id: Optional[str] = Field(None, description="The Supabase user ID initiating the request")
 
 class VideoMetadata(BaseModel):
     id: str

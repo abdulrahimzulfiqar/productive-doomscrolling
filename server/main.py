@@ -1,6 +1,11 @@
+from dotenv import load_dotenv
+# Load environment variables before importing any other modules
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from server.api.routes import router
+from server.api.billing import router as billing_router
 
 app = FastAPI(
     title="Productive Doomscrolling API",
@@ -18,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api/v1")
+app.include_router(billing_router, prefix="/api/v1/billing")
 
 @app.get("/health")
 async def health_check():

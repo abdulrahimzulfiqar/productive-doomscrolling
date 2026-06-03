@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [billingPeriod, setBillingPeriod] = React.useState("monthly");
 
   React.useEffect(() => {
     if (window.location.hash) {
@@ -50,6 +51,7 @@ export default function LandingPage() {
       features: [
         "Process 5 videos / month",
         "AI-generated transcripts & summaries",
+        "Standard vertical aspect ratio (9:16)",
         "Standard mobile-optimized swipeable feed",
         "Custom clip-wise learning notes",
         "Standard email support"
@@ -59,11 +61,12 @@ export default function LandingPage() {
     },
     {
       name: "Plus",
-      price: "$10",
-      period: "monthly",
+      price: billingPeriod === "monthly" ? "$9.99" : "$7.99",
+      period: billingPeriod === "monthly" ? "monthly" : "month (billed yearly)",
       description: "For active learners who want to accelerate their knowledge intake.",
       features: [
         "Process 25 videos / month",
+        "Custom aspect ratio controls (1:1, 16:9, 9:16)",
         "Includes all Free features",
         "Early access to beta features",
         "Priority email support"
@@ -73,11 +76,12 @@ export default function LandingPage() {
     },
     {
       name: "Pro",
-      price: "$20",
-      period: "monthly",
+      price: billingPeriod === "monthly" ? "$24.99" : "$19.99",
+      period: billingPeriod === "monthly" ? "monthly" : "month (billed yearly)",
       description: "For high-volume learners and intensive researchers.",
       features: [
         "Process 50 videos / month",
+        "Custom aspect ratio controls (1:1, 16:9, 9:16)",
         "Includes all Plus features",
         "Priority support with < 12hr turnaround"
       ],
@@ -191,11 +195,28 @@ export default function LandingPage() {
 
       {/* Pricing Section */}
       <section id="pricing" className="relative z-10 max-w-7xl mx-auto px-6 py-20 border-t border-white/5">
-        <div className="text-center max-w-xl mx-auto space-y-3 mb-16">
+        <div className="text-center max-w-xl mx-auto space-y-3 mb-16 flex flex-col items-center">
           <h2 className="text-3xl font-extrabold tracking-tight">Simple, Transparent Pricing</h2>
           <p className="text-white/40 text-sm leading-relaxed">
             All plans include a 14-day refund window. Scale or cancel at any time.
           </p>
+          
+          {/* Monthly / Annual Billing Toggle Switch */}
+          <div className="flex items-center justify-center gap-3 mt-8 bg-white/[0.03] border border-white/5 p-1.5 rounded-2xl w-fit">
+            <button
+              onClick={() => setBillingPeriod("monthly")}
+              className={`text-xs font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all duration-200 ${billingPeriod === 'monthly' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-white/50 hover:text-white'}`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingPeriod("yearly")}
+              className={`text-xs font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 ${billingPeriod === 'yearly' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-white/50 hover:text-white'}`}
+            >
+              Yearly
+              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${billingPeriod === 'yearly' ? 'bg-slate-950/15 text-slate-950' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>Save 20%</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl mx-auto items-stretch">

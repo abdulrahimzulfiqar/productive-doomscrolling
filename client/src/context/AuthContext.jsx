@@ -6,23 +6,74 @@ export const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [subscription, setSubscription] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+
+  const fetchSubscription = useCallback(async (userId) => {
+    if (!userId) {
+      setSubscription(null);
+      setSubscriptionLoading(false);
+      return;
+    }
+    setSubscriptionLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("user_subscriptions")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching subscription:", error);
+      }
+      setSubscription(data ?? {
+        subscription_tier: "free",
+        subscription_status: "active",
+        quota_limit: 5,
+        quota_used: 0
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  }, []);
+
+  const refreshSubscription = useCallback(async () => {
+    if (user) {
+      await fetchSubscription(user.id);
+    }
+  }, [user, fetchSubscription]);
 
   useEffect(() => {
     // Get current session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        fetchSubscription(currentUser.id);
+      } else {
+        setSubscriptionLoading(false);
+      }
       setAuthLoading(false);
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          fetchSubscription(currentUser.id);
+        } else {
+          setSubscription(null);
+          setSubscriptionLoading(false);
+        }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => authSub.unsubscribe();
+  }, [fetchSubscription]);
 
   const signInWithEmail = useCallback(async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -55,6 +106,9 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     authLoading,
+    subscription,
+    subscriptionLoading,
+    refreshSubscription,
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,

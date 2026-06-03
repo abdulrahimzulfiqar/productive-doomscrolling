@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import VideoCard from "../components/VideoCard";
 import { useLibrary } from "../hooks/useLibrary";
 import { useAuth } from "../context/AuthContext";
+import UpgradeModal from "../components/UpgradeModal";
 
 /**
  * ClipNote Component
@@ -149,9 +150,11 @@ function VideoInsightGroup({ videoData, navigate, onDeleteNote }) {
 export default function HomePage() {
   const navigate = useNavigate();
   const { library, saveClipNote } = useLibrary();
-  const { signOut } = useAuth();
+  const { signOut, subscription, user } = useAuth();
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("Videos");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
   const tabs = ["Videos", "My Insights"];
 
@@ -196,32 +199,137 @@ export default function HomePage() {
   
   return (
     <>
-      <header className="fixed top-0 w-full z-40 bg-slate-950/60 backdrop-blur-xl shadow-sm shadow-black/50 flex justify-between items-center px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container border border-outline-variant/20">
+      <header className="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl shadow-sm shadow-black/50 flex justify-between items-center px-6 pt-[calc(1rem+env(safe-area-inset-top))] pb-4">
+        {/* Left Side: Logo & Premium Tier Tag Pill */}
+        <div className="flex items-center gap-2.5">
+          <h1 className="font-lexend tracking-tight text-xl font-bold text-emerald-400">
+            Udoom
+          </h1>
+          {subscription?.subscription_tier && subscription.subscription_tier !== "free" && (
+            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+              {subscription.subscription_tier}
+            </span>
+          )}
+        </div>
+
+        {/* Right Side: Profile Avatar with dropdown */}
+        <div className="flex items-center gap-3 relative">
+          <button 
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 border border-emerald-500/20 hover:border-emerald-400 active:scale-95 transition-all duration-200 cursor-pointer"
+          >
             <img 
               alt="User Profile" 
               className="w-full h-full object-cover" 
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuDABeo83baanpZeGAD3Bpz7llI3umlTK1RBo0JX7SeOIkJkxWAVVI0ElApdU6mHXMpC_Taq4hTXZEyKiSHSAKmaS7b_4N5OFCd1bDfdTySG0oXMuGjQi2FEJeIvDK5OkqGw2KWdMiCQohluUNCo1GmPOyYJWsvQeumfNpHy3b-b0naDBobt1HYZ0bV1TfkWfs4vNPaETENH4O3v8_Kk1OpcuTRIxbmfQCZXRfVvYwvaiZkE8qU37119YW7ANDcFe9WjhLuT5vSY7g8"
             />
-          </div>
-          <h1 className="font-lexend tracking-tight text-xl font-bold text-emerald-400">
-            Udoom
-          </h1>
+          </button>
+          
+          <AnimatePresence>
+            {showProfileMenu && (
+              <>
+                {/* Click outside backdrop to close */}
+                <div 
+                  className="fixed inset-0 z-40 bg-transparent" 
+                  onClick={() => setShowProfileMenu(false)}
+                />
+                
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-12 z-50 w-72 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 shadow-[0_10px_40px_rgba(0,0,0,0.6)] text-left"
+                >
+                  {/* User Profile details */}
+                  <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border border-white/10">
+                      <img 
+                        alt="User Profile" 
+                        className="w-full h-full object-cover" 
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDABeo83baanpZeGAD3Bpz7llI3umlTK1RBo0JX7SeOIkJkxWAVVI0ElApdU6mHXMpC_Taq4hTXZEyKiSHSAKmaS7b_4N5OFCd1bDfdTySG0oXMuGjQi2FEJeIvDK5OkqGw2KWdMiCQohluUNCo1GmPOyYJWsvQeumfNpHy3b-b0naDBobt1HYZ0bV1TfkWfs4vNPaETENH4O3v8_Kk1OpcuTRIxbmfQCZXRfVvYwvaiZkE8qU37119YW7ANDcFe9WjhLuT5vSY7g8"
+                      />
+                    </div>
+                    <div className="overflow-hidden">
+                      <p className="text-[10px] text-white/40 font-black uppercase tracking-widest">Logged In As</p>
+                      <p className="text-sm font-bold text-white truncate">{user?.email || "user@udoom.pro"}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Quota Section */}
+                  {subscription && (
+                    <div className="py-4 border-b border-white/5 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <p className="text-[10px] text-white/40 font-black uppercase tracking-widest">
+                          Quota ({subscription.subscription_tier || "Free"})
+                        </p>
+                        <p className="text-xs font-bold text-emerald-400">
+                          {subscription.quota_used} / {subscription.quota_limit}
+                        </p>
+                      </div>
+                      
+                      {/* Quota Progress Bar */}
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
+                          style={{ width: `${Math.min(100, (subscription.quota_used / subscription.quota_limit) * 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-white/30 text-center font-semibold">
+                        Resets monthly on signup anniversary
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Dropdown Menu actions */}
+                  <div className="pt-3 space-y-2">
+                    {subscription?.subscription_tier === "free" ? (
+                      <button
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          setShowUpgradeModal(true);
+                        }}
+                        className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-sm">arrow_upward</span>
+                        Upgrade Plan
+                      </button>
+                    ) : (
+                      <a 
+                        href={subscription?.cancel_url || "https://paddle.net"} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        onClick={() => setShowProfileMenu(false)}
+                        className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-emerald-400 border border-white/10 text-xs font-bold rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined !text-sm">settings</span>
+                        Manage Subscription
+                      </a>
+                    )}
+                    
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        signOut();
+                      }}
+                      className="w-full py-2.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 text-xs font-bold rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined !text-sm">logout</span>
+                      Log Out
+                    </button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
-        <button 
-          onClick={() => signOut()}
-          className="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 transition-transform duration-200"
-        >
-          <span className="material-symbols-outlined text-emerald-400">logout</span>
-        </button>
       </header>
 
       <main className="pt-[calc(6rem+env(safe-area-inset-top))] px-6 pb-24">
         {/* Search & Filter Section */}
         <section className="mb-8 max-w-lg mx-auto text-left">
           <h2 className="text-3xl font-extrabold tracking-tight mb-6">Library</h2>
-          
+
           <div className="relative mb-6 group">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
             <input 
@@ -299,6 +407,7 @@ export default function HomePage() {
           </section>
         )}
       </main>
+      <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </>
   );
 }
