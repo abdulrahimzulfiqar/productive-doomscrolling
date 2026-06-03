@@ -68,28 +68,8 @@ async def process_video_endpoint(request: ProcessVideoRequest):
         transcript_path = video_metadata['transcript_ready_path']
         video_id = video_metadata.get('video_id', video_id) # Update if step1 found it
         print(f"    ✓ Metadata acquired. Duration: {video_duration}s")
-        
-        # Enforce video duration limits based on subscription tier
-        if subscription:
-            tier = subscription.get("subscription_tier", "free")
-            # Free tier: max 15 minutes (900 seconds)
-            if tier == "free" and video_duration > 900:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Free tier users can only process videos up to 15 minutes long. Please upgrade to Plus or Pro."
-                )
-            # Plus tier: max 45 minutes (2700 seconds)
-            elif tier == "plus" and video_duration > 2700:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Plus tier users can only process videos up to 45 minutes long. Please upgrade to Pro."
-                )
-            # Pro tier: max 2 hours (7200 seconds)
-            elif tier == "pro" and video_duration > 7200:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Pro tier is limited to videos up to 2 hours long due to processing limits."
-                )
+        # No video duration limits enforced based on subscription tier - all tiers can process any length.
+        pass
 
         # Step 2: Transcription Fallback
         if not transcript_path:
