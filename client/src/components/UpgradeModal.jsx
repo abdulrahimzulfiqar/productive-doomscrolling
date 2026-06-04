@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { initializePaddleInstance } from "../utils/PaddleScript";
 
 export default function UpgradeModal({ isOpen, onClose, reason = "Unlock premium features" }) {
   const { user, subscription, refreshSubscription } = useAuth();
@@ -9,7 +8,7 @@ export default function UpgradeModal({ isOpen, onClose, reason = "Unlock premium
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
   // Client-side Token and Environment
-  const PADDLE_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "test_7db7e163c467a14ee32f7a932d0"; // Placeholder test token
+  const PADDLE_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || ""; 
   const PADDLE_ENV = import.meta.env.VITE_PADDLE_ENVIRONMENT || "sandbox";
 
   // Price IDs mapping (Sandbox)
@@ -42,7 +41,7 @@ export default function UpgradeModal({ isOpen, onClose, reason = "Unlock premium
       description: "For active daily learners.",
       features: [
         "Process 25 videos / month",
-        "Up to 45-minute video lengths",
+        "Unlimited video lengths",
         "Interactive learning summaries",
         "Early access to beta controls"
       ],
@@ -59,7 +58,7 @@ export default function UpgradeModal({ isOpen, onClose, reason = "Unlock premium
       description: "For high-volume research and study.",
       features: [
         "Process 50 videos / month",
-        "Up to 2-hour video lengths",
+        "Unlimited video lengths",
         "Priority AI segmentation queue",
         "Dedicated email support (<12h)"
       ],
@@ -75,21 +74,28 @@ export default function UpgradeModal({ isOpen, onClose, reason = "Unlock premium
       return;
     }
 
+    if (!window.Paddle) {
+      alert("Paddle SDK has not loaded yet. Please try again in a moment.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // 1. Initialize Paddle
-      const paddle = await initializePaddleInstance(PADDLE_TOKEN, PADDLE_ENV, (event) => {
-        if (event.name === "checkout.completed") {
-          console.log("Paddle checkout success event received client-side", event.data);
-          setCheckoutSuccess(true);
-          refreshSubscription();
+      // 1. Update Paddle's eventCallback for this modal instance
+      window.Paddle.Update({
+        eventCallback: (event) => {
+          if (event.name === "checkout.completed") {
+            console.log("Paddle checkout success event received client-side", event.data);
+            setCheckoutSuccess(true);
+            refreshSubscription();
+          }
         }
       });
 
       // 2. Open Paddle checkout overlay
       // Per official Paddle docs: https://developer.paddle.com/paddle-js/methods/paddle-checkout-open
-      paddle.Checkout.open({
+      window.Paddle.Checkout.open({
         items: [
           {
             priceId: plan.priceId,

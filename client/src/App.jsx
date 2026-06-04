@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 import BottomNav from "./components/BottomNav";
@@ -37,7 +38,48 @@ function LibraryShell({ children }) {
 }
 
 function AppContent() {
-  const { user, authLoading } = useAuth();
+  const { user, authLoading, subscription } = useAuth();
+
+  // Initialize Paddle.js and configure it for Retain
+  useEffect(() => {
+    if (authLoading) return;
+
+    const PADDLE_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "test_7db7e163c467a14ee32f7a932d0";
+    const PADDLE_ENV = import.meta.env.VITE_PADDLE_ENVIRONMENT || "sandbox";
+
+    const initPaddle = () => {
+      if (window.Paddle) {
+        try {
+          if (!window.Paddle.Initialized) {
+            if (PADDLE_ENV === "sandbox") {
+              window.Paddle.Environment.set("sandbox");
+            }
+            window.Paddle.Initialize({ token: PADDLE_TOKEN });
+          }
+          
+          // If user is logged in and has a verified Paddle Customer ID (starts with ctm_), sync it with Retain
+          if (user && subscription?.paddle_customer_id?.startsWith("ctm_")) {
+            console.log("Syncing customer with Paddle Retain:", subscription.paddle_customer_id);
+            window.Paddle.Update({
+              pwCustomer: {
+                id: subscription.paddle_customer_id
+              }
+            });
+          }
+        } catch (err) {
+          console.error("Failed to initialize/update Paddle.js:", err);
+        }
+      }
+    };
+
+    if (window.Paddle) {
+      initPaddle();
+    } else {
+      const handleLoad = () => initPaddle();
+      window.addEventListener("paddlejs:loaded", handleLoad);
+      return () => window.removeEventListener("paddlejs:loaded", handleLoad);
+    }
+  }, [user, subscription, authLoading]);
 
   // Auth loading state: show a minimal dark spinner
   if (authLoading) {
