@@ -1,10 +1,10 @@
-# 🚀 Udoom (Productive Doomscrolling)
+# Udoom (Productive Doomscrolling)
 
 Udoom is an AI-powered web application that turns long-form video consumption (e.g., YouTube lectures, podcasts, or documentaries) into high-yield, vertical "doomscrolling" feeds. It parses long videos into 60-second bite-sized educational clips so you can absorb high-value content instead of short-form brainrot.
 
 ---
 
-## 📐 Pipeline Architecture
+## Pipeline Architecture
 
 Here is the step-by-step workflow of the core AI pipeline:
 
@@ -54,7 +54,7 @@ graph TD
 
 ---
 
-## 🛠️ Deep Dive: The AI Pipeline
+## Deep Dive: The AI Pipeline
 
 The pipeline is split into four modular steps located in [`server/pipeline/`](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline):
 
@@ -77,7 +77,7 @@ The pipeline is split into four modular steps located in [`server/pipeline/`](fi
 
 ---
 
-## 💻 Tech Stack & Infrastructure
+## Tech Stack & Infrastructure
 
 * **Frontend**: React + Vite + Tailwind CSS (Mobile-First responsive UI)
 * **Backend**: FastAPI (Python) hosted on **Render**
@@ -88,7 +88,7 @@ The pipeline is split into four modular steps located in [`server/pipeline/`](fi
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 * Python 3.10+
