@@ -10,18 +10,37 @@ Here is the step-by-step workflow of the core AI pipeline:
 
 ```mermaid
 graph TD
-    A[YouTube URL / Video Upload] -->|yt-dlp| B(Step 1: Download Video & Metadata)
-    B -->|FFmpeg Extract Audio| C(Step 2: Audio Transcription via Groq Whisper)
-    C -->|Gemini API| D(Step 3: AI Segmentation & Aspect Ratio Decision)
-    D -->|FFmpeg Crop & Cut| E[Step 4: Vertical 9:16 Video Clips]
-    E -->|Supabase Cloud Storage| F[Interactive Mobile Feed]
+    %% Frontend Flow
+    subgraph Frontend [React Mobile Client]
+        A[User Submits YouTube URL] -->|API Request| B[FastAPI Backend /process]
+        H[Scrollable Doomscroll Feed] -->|YouTube IFrame Player API| I[Virtual Clipping & Cropping]
+        I -->|Seek & Loop between Start/End| J[Instant Loop Playback]
+        H -->|User Interaction| K[Save Insights & Progress]
+    end
 
-    style A fill:#f9f9f9,stroke:#333,stroke-width:1px
-    style B fill:#e1f5fe,stroke:#0288d1,stroke-width:1px
-    style C fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px
-    style D fill:#fce4ec,stroke:#c2185b,stroke-width:1px
-    style E fill:#fff3e0,stroke:#f57c00,stroke-width:1px
-    style F fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    %% Backend Flow
+    subgraph Backend [FastAPI Backend]
+        B -->|yt-dlp| C{Native Transcript Available?}
+        C -->|Yes| D[Parse Captions]
+        C -->|No| E[Audio Extraction + Groq Whisper STT]
+        D & E --> F[Neural Segmentation & Ratio Decision via Gemini]
+    end
+
+    %% Database Flow
+    subgraph Database [Supabase PostgreSQL Cloud DB]
+        F -->|Return Metadata JSON| L[Insert Video & Clips Metadata]
+        L --> G[(PostgreSQL DB: videos / clips / user_library)]
+        K -->|Save watched/notes| M[(user_clip_interactions)]
+    end
+
+    %% Wiring
+    G -->|Load User Library| H
+    M -->|Sync User State| H
+
+    %% Aesthetics
+    style Frontend fill:#f8fafc,stroke:#475569,stroke-width:1px
+    style Backend fill:#fff1f2,stroke:#be123c,stroke-width:1px
+    style Database fill:#f0fdf4,stroke:#15803d,stroke-width:1px
 ```
 
 ---
@@ -40,13 +59,11 @@ The pipeline is split into four modular steps located in [`server/pipeline/`](fi
 3. **Step 3: AI Segmentation** ([step3_segment.py](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step3_segment.py))
    * Feeds transcripts and chapter boundaries to **Google Gemini** using a strict JSON output schema.
    * Gemini determines natural boundaries (non-overlapping clips ranging from 60s to 480s) and identifies a unified optimal aspect ratio for the clips.
-4. **Step 4: Multi-Ratio Clipping** ([step4_clip.py](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step4_clip.py))
-   * Uses `ffmpeg` with fast seeking to crop and stitch clips.
-   * Dynamically applies the chosen aspect ratio filter:
-     * `vertical_crop` (16:9 ➔ 9:16 center-crop for talking heads)
-     * `letterbox` (box scaling with padding for presentations/slides)
-     * `square` (1:1 crop)
-     * `original` (leaves vertical format intact)
+4. **Step 4: Client-Side Virtual Clipping & Cropping** (Active Web App Path)
+   * Rather than rendering static physical files server-side (which is slow and expensive), the production application performs **virtual clipping & cropping** directly on the client.
+   * **Virtual Cropping**: Scoped CSS rules on the React client dynamically crop the YouTube IFrame player window (e.g., center-cropping talking heads for `vertical_crop` or sizing it for `letterbox`) according to Gemini's recommendation.
+   * **Virtual Clipping**: A heartbeat thread monitors player time using the YouTube IFrame Player API. Once the elapsed time hits the clip's `end` time, the player instantly loops back to the `start` time.
+   * *(Note: An offline physical rendering script using `ffmpeg` is still available in [`step4_clip.py`](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step4_clip.py) if you wish to export actual cropped MP4 video files locally.)*
 
 ---
 
