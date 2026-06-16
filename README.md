@@ -20,8 +20,8 @@ graph TD
 
     %% Backend Flow
     subgraph Backend [FastAPI Backend]
-        B -->|yt-dlp| C{Native Transcript Available?}
-        C -->|Yes| D[Parse Captions]
+        B -->|Check Captions| C{Native Transcript Available?}
+        C -->|Yes| D[Parse Captions via youtube-transcript-api]
         C -->|No| E[Audio Extraction + Groq Whisper STT]
         D & E --> F[Neural Segmentation & Ratio Decision via Gemini]
     end
@@ -58,13 +58,15 @@ graph TD
 
 The pipeline is split into four modular steps located in [`server/pipeline/`](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline):
 
-1. **Step 1: Download & Ingestion** ([step1_download.py](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step1_download.py))
-   * Downloads the raw video using `yt-dlp` in a fast-seeking format.
-   * Downloads YouTube chapter markers for better contextual mapping.
+1. **Step 1: Ingestion & Caption Retrieval** ([step1_download.py](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step1_download.py))
+   * Attempts to instantly fetch the native English transcripts from YouTube using the `youtube-transcript-api` library (routed through Webshare rotating proxies to bypass blocks).
+   * Extracts metadata (title, duration, chapters) using the official YouTube Data API v3, falling back to scraping via `yt-dlp` if no API key is set.
 2. **Step 2: Extract & Transcribe** ([step2_transcribe.py](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step2_transcribe.py))
-   * Uses `ffmpeg` to strip the video and extract highly compressed audio (48kbps mono MP3) to avoid API request payload limits.
-   * Uses the **Groq Whisper API** (`whisper-large-v3`) to generate transcripts with exact timestamps.
-   * Includes a stitching engine to automatically handle and transcribe files longer than Whisper's 25MB threshold.
+   * If native transcripts are unavailable, a **Whisper AI Fallback** path can be triggered:
+     * Downloads the audio track using `yt-dlp` and uses `ffmpeg` to extract a highly compressed mono MP3 (48kbps) to avoid upload limits.
+     * Transcribes the audio using the **Groq Whisper API** (`whisper-large-v3`) with exact sentence-level timestamps.
+     * Employs a stitching engine to auto-chunk and reassemble transcripts for long videos exceeding Groq's 25MB file upload limit.
+   * *(Note: To save proxy bandwidth, this audio-download/Whisper fallback is currently commented out/disabled by default, making native transcripts a requirement for processing new videos.)*
 3. **Step 3: AI Segmentation** ([step3_segment.py](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step3_segment.py))
    * Feeds transcripts and chapter boundaries to **Google Gemini** using a strict JSON output schema.
    * Gemini determines natural boundaries (non-overlapping clips ranging from 60s to 480s) and identifies a unified optimal aspect ratio for the clips.
