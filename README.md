@@ -1,10 +1,12 @@
-# Udoom (Productive Doomscrolling)
+# Udoom
 
 Udoom is an AI-powered web application that turns long-form video consumption (e.g., YouTube lectures, podcasts, or documentaries) into high-yield, vertical "doomscrolling" feeds. It parses long videos into 60-second bite-sized educational clips so you can absorb high-value content instead of short-form brainrot.
 
-<p align="center">
-  <video src="udoom_demo.mp4" width="280" controls autoplay muted loop></video>
-</p>
+<div align="center">
+  
+  https://github.com/user-attachments/assets/efad146f-c716-40a1-8e90-7d6e633f2a2c
+  
+</div>
 
 ---
 
