@@ -12,18 +12,18 @@ Here is the step-by-step workflow of the core AI pipeline:
 graph TD
     %% Frontend Flow
     subgraph Frontend [React Mobile Client]
-        A[User Submits YouTube URL] -->|API Request| B[FastAPI Backend /process]
-        H[Scrollable Doomscroll Feed] -->|YouTube IFrame Player API| I[Virtual Clipping & Cropping]
+        A[User Submits YouTube URL] -->|API Request| B[FastAPI Backend on Render /process]
+        H[Scrollable Doomscroll Feed] -->|YouTube Embed API| I[Virtual Clipping via Embed Timestamps]
         I -->|Seek & Loop between Start/End| J[Instant Loop Playback]
         H -->|User Interaction| K[Save Insights & Progress]
     end
 
     %% Backend Flow
-    subgraph Backend [FastAPI Backend]
+    subgraph Backend [FastAPI Backend on Render]
         B -->|Check Captions| C{Native Transcript Available?}
         C -->|Yes| D[Parse Captions via youtube-transcript-api]
         C -->|No| E[Audio Extraction + Groq Whisper STT]
-        D & E --> F[Neural Segmentation & Ratio Decision via Gemini]
+        D & E --> F[Gemini Segmenter: Returns JSON Timestamps]
     end
 
     %% Database Flow
@@ -68,12 +68,12 @@ The pipeline is split into four modular steps located in [`server/pipeline/`](fi
      * Employs a stitching engine to auto-chunk and reassemble transcripts for long videos exceeding Groq's 25MB file upload limit.
    * *(Note: To save proxy bandwidth, this audio-download/Whisper fallback is currently commented out/disabled by default, making native transcripts a requirement for processing new videos.)*
 3. **Step 3: AI Segmentation** ([step3_segment.py](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step3_segment.py))
-   * Feeds transcripts and chapter boundaries to **Google Gemini** using a strict JSON output schema.
+   * Feeds transcripts and chapter boundaries to **Google Gemini** using a strict JSON output schema to return precise start/end timestamps.
    * Gemini determines natural boundaries (non-overlapping clips ranging from 60s to 480s) and identifies a unified optimal aspect ratio for the clips.
 4. **Step 4: Client-Side Virtual Clipping & Cropping** (Active Web App Path)
    * Rather than rendering static physical files server-side (which is slow and expensive), the production application performs **virtual clipping & cropping** directly on the client.
    * **Virtual Cropping**: Scoped CSS rules on the React client dynamically crop the YouTube IFrame player window (e.g., center-cropping talking heads for `vertical_crop` or sizing it for `letterbox`) according to Gemini's recommendation.
-   * **Virtual Clipping**: A heartbeat thread monitors player time using the YouTube IFrame Player API. Once the elapsed time hits the clip's `end` time, the player instantly loops back to the `start` time.
+   * **Virtual Clipping**: A heartbeat thread monitors player time via the YouTube Embed player API. Once the elapsed time hits the clip's JSON-defined `end` timestamp, the player instantly loops back to the `start` timestamp.
    * *(Note: An offline physical rendering script using `ffmpeg` is still available in [`step4_clip.py`](file:///Users/teamincredibles/Desktop/Productive%20Doomscrolling/server/pipeline/step4_clip.py) if you wish to export actual cropped MP4 video files locally.)*
 
 ---
@@ -81,7 +81,7 @@ The pipeline is split into four modular steps located in [`server/pipeline/`](fi
 ## 💻 Tech Stack & Infrastructure
 
 * **Frontend**: React + Vite + Tailwind CSS (Mobile-First responsive UI)
-* **Backend**: FastAPI (Python)
+* **Backend**: FastAPI (Python) hosted on **Render**
 * **Auth & DB**: Supabase (PostgreSQL with strict Row Level Security)
 * **Payment Processing**: Paddle v2 Sandbox integration (custom webhooks and automatic monthly usage resets)
 * **Video Automation**: `ffmpeg`, `yt-dlp`, and `verbose_json` Groq-Whisper transcript stitching.
