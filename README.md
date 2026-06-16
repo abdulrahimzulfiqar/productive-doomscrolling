@@ -37,10 +37,19 @@ graph TD
     G -->|Load User Library| H
     M -->|Sync User State| H
 
-    %% Aesthetics
-    style Frontend fill:#f8fafc,stroke:#475569,stroke-width:1px
-    style Backend fill:#fff1f2,stroke:#be123c,stroke-width:1px
-    style Database fill:#f0fdf4,stroke:#15803d,stroke-width:1px
+    %% Style Classes for Dark & Light Mode Compatibility
+    classDef clientStyle fill:#0f172a,stroke:#3b82f6,stroke-width:1px,color:#f8fafc;
+    classDef serverStyle fill:#1e1b4b,stroke:#6366f1,stroke-width:1px,color:#f8fafc;
+    classDef dbStyle fill:#022c22,stroke:#10b981,stroke-width:1px,color:#f8fafc;
+
+    class A,H,I,J,K clientStyle;
+    class B,C,D,E,F serverStyle;
+    class L,G,M dbStyle;
+
+    %% Subgraph Aesthetics
+    style Frontend fill:none,stroke:#3b82f6,stroke-width:1.5px,stroke-dasharray: 5 5;
+    style Backend fill:none,stroke:#6366f1,stroke-width:1.5px,stroke-dasharray: 5 5;
+    style Database fill:none,stroke:#10b981,stroke-width:1.5px,stroke-dasharray: 5 5;
 ```
 
 ---
